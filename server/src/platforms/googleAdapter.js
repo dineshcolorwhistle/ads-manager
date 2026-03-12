@@ -98,8 +98,11 @@ class GoogleAdapter extends BaseAdapter {
                 status: 3, // PAUSED = 3
                 campaign_budget: budgetId,
                 // Bidding strategy is REQUIRED since Google Ads API v15+
+                // We use a safe maximum CPC ceiling (e.g. 100 USD max per click) to prevent the protobuf library 
+                // from stripping out the `cpc_bid_ceiling_micros` value when it is 0. If it gets stripped, `maximize_clicks` 
+                // becomes an empty object, which then also gets stripped out, resulting in the "required field missing" error.
                 maximize_clicks: {
-                    cpc_bid_ceiling_micros: 0
+                    cpc_bid_ceiling_micros: 100000000 // $100 Max CPC limit
                 },
                 network_settings: {
                     target_google_search: true,
@@ -209,6 +212,15 @@ class GoogleAdapter extends BaseAdapter {
      * Extract meaningful error message from google-ads-api SDK errors
      */
     _extractErrorMessage(error) {
+        try {
+            const fs = require('fs');
+            const data = {
+                msg: error.message,
+                errors: error.errors ? error.errors.map(e => ({ name: e.name, message: e.message, path: JSON.stringify(e.location || e.fieldPathElements || e) })) : null,
+                failure: error.failure ? JSON.stringify(error.failure) : null
+            };
+            fs.writeFileSync('C:\\ads-manager\\server\\debug_err.json', JSON.stringify(data, null, 2));
+        } catch(e) {}
         if (error.message && error.message !== '') return error.message;
         if (error.errors && Array.isArray(error.errors)) {
             return error.errors.map(e => e.message || JSON.stringify(e.error_code || e)).join('; ');

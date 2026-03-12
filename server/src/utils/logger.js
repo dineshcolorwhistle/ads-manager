@@ -44,14 +44,14 @@ const logger = winston.createLogger({
 
         // File transport for errors (append mode)
         new winston.transports.File({
-            filename: path.join(process.cwd(), '..', '..', 'error.log'),
+            filename: path.join(process.cwd(), 'error.log'),
             level: 'error',
             options: { flags: 'a' } // Append mode
         }),
 
         // File transport for all logs (append mode)
         new winston.transports.File({
-            filename: path.join(process.cwd(), '..', '..', 'success.log'),
+            filename: path.join(process.cwd(), 'success.log'),
             level: 'info',
             options: { flags: 'a' } // Append mode
         })

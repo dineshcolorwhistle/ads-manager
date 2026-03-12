@@ -1,0 +1,1 @@
+{"success":false,"error":{"code":"PUBLISH_FAILED","message":"Validation failed: At least one Ad Group is required for READY status"},"timestamp":"2026-03-12T06:31:54.104Z"}
