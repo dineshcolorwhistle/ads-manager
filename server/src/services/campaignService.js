@@ -140,11 +140,12 @@ const getCampaignFull = async (id, clientId) => {
  * Update campaign and its full structure
  * Supports partial updates and tiered validation
  */
-const updateCampaign = async (id, clientId, data) => {
+const updateCampaign = async (id, clientId, data, options = {}) => {
     const { status, ...updateData } = data;
 
     // If setting to READY, run Tier 2 validation
-    if (status === 'READY') {
+    // (skip when called from saveFullCampaign, which validates AFTER children are saved)
+    if (status === 'READY' && !options.skipValidation) {
         const platformErrors = await validatePlatformSpecific(data.platform || 'google', id, clientId);
         if (platformErrors.length > 0) {
             throw new Error(`Platform validation failed: ${platformErrors.join('. ')}`);
@@ -165,8 +166,8 @@ const saveFullCampaign = async (clientId, userId, fullData) => {
     let campaign;
 
     if (_id) {
-        // Update existing campaign
-        campaign = await updateCampaign(_id, clientId, campaignData);
+        // Update existing campaign — skip validation here, run AFTER children are saved
+        campaign = await updateCampaign(_id, clientId, campaignData, { skipValidation: true });
     } else {
         // Create new campaign
         campaign = await createCampaign(clientId, userId, campaignData);
@@ -197,15 +198,15 @@ const saveFullCampaign = async (clientId, userId, fullData) => {
                 }
             }
         }
+    }
 
-        // Run Tier 2 validation for NEW campaigns created as READY (after children are saved)
-        if (!_id && campaign.status === 'READY') {
-            const platformErrors = await validatePlatformSpecific(campaign.platform, campaign._id, clientId);
-            if (platformErrors.length > 0) {
-                // Revert status to DRAFT if validation fails
-                await campaignRepository.update(campaign._id, clientId, { status: 'DRAFT' });
-                throw new Error(`Platform validation failed: ${platformErrors.join('. ')}`);
-            }
+    // Run Tier 2 validation AFTER children are saved (for both new and existing campaigns)
+    if (campaign.status === 'READY') {
+        const platformErrors = await validatePlatformSpecific(campaign.platform, campaign._id, clientId);
+        if (platformErrors.length > 0) {
+            // Revert status to DRAFT if validation fails
+            await campaignRepository.update(campaign._id, clientId, { status: 'DRAFT' });
+            throw new Error(`Platform validation failed: ${platformErrors.join('. ')}`);
         }
     }
 

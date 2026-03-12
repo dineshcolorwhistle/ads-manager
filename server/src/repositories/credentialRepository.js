@@ -54,6 +54,17 @@ const deleteCredential = async (id) => {
     }
 };
 
+const deleteCredentialsByClientAndPlatform = async (clientId, platform) => {
+    try {
+        const result = await OAuthCredential.deleteMany({ client_id: clientId, platform });
+        logger.success('CREDENTIAL_REPOSITORY', `Deleted ${result.deletedCount} credentials for ${platform}`);
+        return result;
+    } catch (error) {
+        logger.error('CREDENTIAL_REPOSITORY', 'Failed to delete credentials by client and platform', error);
+        throw error;
+    }
+};
+
 const findConnectedPlatformsByClient = async (clientId) => {
     try {
         const credentials = await OAuthCredential.find({ client_id: clientId })
@@ -83,5 +94,6 @@ module.exports = {
     upsertCredential,
     findCredentialByClientAndPlatform,
     findConnectedPlatformsByClient,
-    deleteCredential
+    deleteCredential,
+    deleteCredentialsByClientAndPlatform
 };

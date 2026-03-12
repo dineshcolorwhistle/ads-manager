@@ -76,10 +76,36 @@ const CampaignForm = () => {
     // Poll for publishing status
     useEffect(() => {
         let pollInterval;
+        let retryCount = 0;
+        const MAX_RETRIES = 60; // Stop after ~5 minutes (60 * 5s)
+
         if (formData.status === 'PUBLISHING') {
-            pollInterval = setInterval(() => {
-                loadDraft();
-            }, 3000);
+            pollInterval = setInterval(async () => {
+                retryCount++;
+                if (retryCount > MAX_RETRIES) {
+                    clearInterval(pollInterval);
+                    setError('Publishing status check timed out. Please refresh the page.');
+                    return;
+                }
+                try {
+                    const response = await campaignService.getDraft(id);
+                    const data = response.data;
+                    if (data.start_date) {
+                        data.start_date = new Date(data.start_date).toISOString().split('T')[0];
+                    }
+                    if (!data.ad_groups || data.ad_groups.length === 0) {
+                        data.ad_groups = [{ name: '', creatives: [{ name: '', headlines: [{ text: '' }], descriptions: [{ text: '' }] }] }];
+                    }
+                    setFormData(data);
+                    // Stop polling once status is no longer PUBLISHING
+                    if (data.status !== 'PUBLISHING') {
+                        clearInterval(pollInterval);
+                    }
+                } catch (err) {
+                    // Don't show error during background polling to avoid confusing UI
+                    console.error('Poll failed:', err);
+                }
+            }, 5000);
         }
         return () => clearInterval(pollInterval);
     }, [formData.status]);

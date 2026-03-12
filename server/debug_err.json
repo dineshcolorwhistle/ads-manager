@@ -1,0 +1,9 @@
+{
+  "errors": [
+    {
+      "message": "The required field was not present.",
+      "path": "{\"field_path_elements\":[{\"field_name\":\"operations\",\"index\":0},{\"field_name\":\"create\"},{\"field_name\":\"contains_eu_political_advertising\"}]}"
+    }
+  ],
+  "failure": null
+}

@@ -24,18 +24,22 @@ const publishCampaign = async (campaignId, clientId) => {
         throw new Error('Campaign not found');
     }
 
+    // Use the campaign's own client_id for downstream queries
+    // (ADMIN users may have null clientId, but the campaign has the real client_id)
+    const effectiveClientId = campaign.client_id || clientId;
+
     if (campaign.status !== 'READY') {
         throw new Error(`Only READY campaigns can be published. Current status: ${campaign.status}`);
     }
 
     // 2. Platform-specific validation (re-run Phase 3 checks)
-    const errors = await campaignService.validatePlatformSpecific(campaign.platform, campaignId, clientId);
+    const errors = await campaignService.validatePlatformSpecific(campaign.platform, campaignId, effectiveClientId);
     if (errors.length > 0) {
         throw new Error(`Validation failed: ${errors.join('. ')}`);
     }
 
     // 3. Update status to PUBLISHING
-    await campaignRepository.update(campaignId, clientId, {
+    await campaignRepository.update(campaignId, effectiveClientId, {
         status: 'PUBLISHING',
         $push: { publish_logs: { status: 'PUBLISHING', message: 'Publishing initiated' } }
     });
@@ -43,7 +47,7 @@ const publishCampaign = async (campaignId, clientId) => {
     // 4. Trigger ASYNC background processing (MERN-Only / No Redis)
     // Using setImmediate to let the event loop finish the request first
     setImmediate(() => {
-        processPublish(campaignId, clientId).catch(err => {
+        processPublish(campaignId, effectiveClientId).catch(err => {
             logger.error('PUBLISH_SERVICE', `Background process failed for ${campaignId}`, err);
         });
     });

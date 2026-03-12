@@ -43,6 +43,17 @@ const deleteAccountsByCredential = async (credentialId) => {
     }
 };
 
+const deleteAccountsByClientAndPlatform = async (clientId, platform) => {
+    try {
+        const result = await PlatformAccount.deleteMany({ client_id: clientId, platform });
+        logger.success('PLATFORM_ACCOUNT_REPOSITORY', `Deleted ${result.deletedCount} accounts for ${platform}`);
+        return result;
+    } catch (error) {
+        logger.error('PLATFORM_ACCOUNT_REPOSITORY', 'Failed to delete accounts by client and platform', error);
+        throw error;
+    }
+};
+
 const deleteAccount = async (accountId) => {
     try {
         const result = await PlatformAccount.deleteOne({ _id: accountId });
@@ -57,5 +68,6 @@ module.exports = {
     upsertAccount,
     findAccountsByClient,
     deleteAccountsByCredential,
+    deleteAccountsByClientAndPlatform,
     deleteAccount
 };

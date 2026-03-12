@@ -97,11 +97,13 @@ class GoogleAdapter extends BaseAdapter {
                 advertising_channel_type: 2, // SEARCH = 2
                 status: 3, // PAUSED = 3
                 campaign_budget: budgetId,
+                // EU Political Advertising declaration is REQUIRED since Google Ads API v19.2+
+                // (EU TTPA regulation enforcement). Enum value 3 = DOES_NOT_CONTAIN_EU_POLITICAL_ADVERTISING
+                contains_eu_political_advertising: 3,
                 // Bidding strategy is REQUIRED since Google Ads API v15+
-                // We use a safe maximum CPC ceiling (e.g. 100 USD max per click) to prevent the protobuf library 
-                // from stripping out the `cpc_bid_ceiling_micros` value when it is 0. If it gets stripped, `maximize_clicks` 
-                // becomes an empty object, which then also gets stripped out, resulting in the "required field missing" error.
-                maximize_clicks: {
+                // In API v23, 'maximize_clicks' has been replaced by 'target_spend'.
+                // We set a safe CPC ceiling to act as a maximum bid limit.
+                target_spend: {
                     cpc_bid_ceiling_micros: 100000000 // $100 Max CPC limit
                 },
                 network_settings: {

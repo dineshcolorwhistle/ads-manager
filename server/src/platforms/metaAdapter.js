@@ -69,17 +69,31 @@ class MetaAdapter extends BaseAdapter {
 
             for (const ag of data.ad_groups) {
                 // 2. Create Ad Set
+                let optGoal = 'REACH';
+                let promotedObject = null;
+                if (data.objective === 'OUTCOME_TRAFFIC') {
+                    optGoal = 'LINK_CLICKS';
+                } else if (data.objective === 'OUTCOME_LEADS') {
+                    optGoal = 'LEAD_GENERATION';
+                    promotedObject = { page_id: data.facebook_page_id || '944598498748166' };
+                } else if (data.objective === 'OUTCOME_SALES') {
+                    optGoal = 'OFFSITE_CONVERSIONS';
+                }
+
                 const adSetData = {
                     name: ag.name,
                     campaign_id: campaignId,
                     status: 'PAUSED',
                     billing_event: 'IMPRESSIONS',
-                    optimization_goal: 'REACH', // Generic fallback
-                    bid_amount: 100, // 1 USD equivalent
+                    optimization_goal: optGoal,
                     targeting: {
                         geo_locations: { countries: ['US'] }
                     }
                 };
+
+                if (promotedObject) {
+                    adSetData.promoted_object = promotedObject;
+                }
 
                 // Add budget if present (enforce minimum of 10000 minor units, e.g. 100 INR/USD)
                 // Meta requires higher minimums for certain objectives and currencies.
@@ -87,6 +101,18 @@ class MetaAdapter extends BaseAdapter {
                     adSetData.daily_budget = Math.max(data.daily_budget, 10000);
                 } else if (data.lifetime_budget > 0) {
                     adSetData.lifetime_budget = Math.max(data.lifetime_budget, 100000);
+                }
+
+                if (data.start_time) {
+                    // Meta API expects ISO-8601 or unix timestamp string
+                    adSetData.start_time = new Date(data.start_time * 1000).toISOString();
+                } else {
+                    // Fallback to current time + 5 mins if not set
+                    adSetData.start_time = new Date(Date.now() + 5 * 60000).toISOString();
+                }
+
+                if (data.end_time) {
+                    adSetData.end_time = new Date(data.end_time * 1000).toISOString();
                 }
 
                 const metaAdSet = await account.createAdSet([], adSetData);
@@ -116,9 +142,9 @@ class MetaAdapter extends BaseAdapter {
                             object_story_spec: {
                                 page_id: pageId,
                                 link_data: {
-                                    link: 'https://example.com',
-                                    message: creative.descriptions && creative.descriptions.length > 0 ? creative.descriptions[0].text : 'Default Description',
-                                    name: creative.headlines && creative.headlines.length > 0 ? creative.headlines[0].text : 'Default Headline'
+                                    link: creative.final_urls && creative.final_urls.length > 0 ? creative.final_urls[0] : 'https://example.com',
+                                    message: creative.descriptions && creative.descriptions.length > 0 ? (creative.descriptions[0].text || creative.descriptions[0]) : 'Default Description',
+                                    name: creative.headlines && creative.headlines.length > 0 ? (creative.headlines[0].text || creative.headlines[0]) : 'Default Headline'
                                 }
                             }
                         };

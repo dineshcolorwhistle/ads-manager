@@ -129,17 +129,15 @@ const handleCallback = async (clientId, platform, code) => {
  */
 const disconnect = async (clientId, platform) => {
     try {
-        const credential = await credentialRepository.findCredentialByClientAndPlatform(clientId, platform);
+        // 1. Delete discovered accounts for the platform
+        await platformAccountRepository.deleteAccountsByClientAndPlatform(clientId, platform);
 
-        if (!credential) {
+        // 2. Delete all credentials for the platform
+        const result = await credentialRepository.deleteCredentialsByClientAndPlatform(clientId, platform);
+
+        if (!result || result.deletedCount === 0) {
             return { message: 'No connection found' };
         }
-
-        // 1. Delete discovered accounts
-        await platformAccountRepository.deleteAccountsByCredential(credential._id);
-
-        // 2. Delete credential
-        await credentialRepository.deleteCredential(credential._id);
 
         logger.success('PLATFORM_SERVICE', `Disconnected ${platform} for client ${clientId}`);
 
