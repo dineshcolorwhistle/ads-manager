@@ -22,7 +22,7 @@ jobs:
           script: |
             set -e
 
-            cd /home/eduwhistle-adscampaign/htdocs/adscampaign.eduwhistle.com/ads-manager/client/dist
+            cd /home/eduwhistle-adscampaign/htdocs/adscampaign.eduwhistle.com/ads-manager
 
             git config --global --add safe.directory "$(pwd)"
 
@@ -37,9 +37,6 @@ jobs:
             npm --prefix client run build
 
             npm --prefix server install
-
-            rm -rf client/public/*
-            cp -r client/dist/* client/public/
 
             pm2 describe  ad-campaign >/dev/null 2>&1 && \
             pm2 reload ecosystem.config.js --only  ads-campaign --env staging --update-env || \
