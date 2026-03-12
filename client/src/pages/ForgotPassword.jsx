@@ -1,24 +1,24 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import authService from '../services/authService';
 import './Login.css';
 
-const Login = () => {
+const ForgotPassword = () => {
     const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
+    const [message, setMessage] = useState(null);
     const [error, setError] = useState(null);
-    const navigate = useNavigate();
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        setLoading(true);
+        setMessage(null);
+        setError(null);
         try {
-            setLoading(true);
-            setError(null);
-            await authService.login(email, password);
-            navigate('/');
+            await authService.requestPasswordReset(email);
+            setMessage('If an account with that email exists, a password reset link has been sent.');
         } catch (err) {
-            setError(err.message || 'Failed to login');
+            setError(err.message || 'Failed to request password reset');
         } finally {
             setLoading(false);
         }
@@ -32,21 +32,22 @@ const Login = () => {
                         <span>AC</span>
                     </div>
                     <h1>Ads Campaigner</h1>
-                    <p>Plan, launch, and optimize ad campaigns from a single, unified dashboard.</p>
+                    <p>Reset access to your workspace securely.</p>
                     <ul className="login-brand-points">
-                        <li>Real-time campaign performance</li>
-                        <li>Unified view across channels</li>
-                        <li>Smart recommendations</li>
+                        <li>No password shared over email</li>
+                        <li>Time-limited reset links</li>
+                        <li>Secure account recovery</li>
                     </ul>
                 </div>
 
                 <div className="login-card">
                     <div className="login-header">
-                        <h2>Welcome back</h2>
-                        <p>Sign in to continue to your workspace</p>
+                        <h2>Forgot password</h2>
+                        <p>Enter your email and we’ll send you a reset link</p>
                     </div>
 
                     <form onSubmit={handleSubmit} className="login-form">
+                        {message && <div className="login-success">{message}</div>}
                         {error && <div className="login-error">{error}</div>}
 
                         <div className="form-group">
@@ -61,31 +62,14 @@ const Login = () => {
                             />
                         </div>
 
-                        <div className="form-group">
-                            <div className="form-label-row">
-                                <label>Password</label>
-                                <Link to="/forgot-password" className="link-button">
-                                    Forgot password?
-                                </Link>
-                            </div>
-                            <input
-                                type="password"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                placeholder="••••••••"
-                                autoComplete="current-password"
-                                required
-                            />
-                        </div>
-
                         <button type="submit" className="login-btn" disabled={loading}>
-                            {loading ? 'Authenticating...' : 'Sign In'}
+                            {loading ? 'Sending link...' : 'Send reset link'}
                         </button>
 
                         <div className="login-helper">
-                            <p>Use the demo account for quick access:</p>
                             <p>
-                                <strong>admin@example.com</strong> &nbsp;/&nbsp; <strong>password123</strong>
+                                Remembered your password?{' '}
+                                <Link to="/login" className="inline-link">Back to login</Link>
                             </p>
                         </div>
                     </form>
@@ -95,4 +79,5 @@ const Login = () => {
     );
 };
 
-export default Login;
+export default ForgotPassword;
+

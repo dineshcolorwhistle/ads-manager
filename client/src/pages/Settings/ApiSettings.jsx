@@ -103,12 +103,35 @@ const ApiSettings = () => {
         }
     };
 
-    if (loading) return <div className="loading-state">Loading settings...</div>;
+    if (loading) {
+        return (
+            <div className="settings-loading-shell">
+                <div className="settings-loading-card">
+                    <div className="settings-loading-title" />
+                    <div className="settings-loading-line" />
+                    <div className="settings-loading-grid">
+                        <div className="settings-loading-block" />
+                        <div className="settings-loading-block" />
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="settings-container">
-            <h1>API Settings</h1>
-            <p className="subtitle">Configure your own Google and Meta Ads API credentials to connect your accounts.</p>
+            <header className="settings-header">
+                <div>
+                    <h1>API Settings</h1>
+                    <p className="subtitle">
+                        Connect your own Google and Meta Ads APIs. Your credentials are encrypted and never shared.
+                    </p>
+                </div>
+                <div className="settings-header-meta">
+                    <span className="pill pill-safe">Secure storage</span>
+                    <span className="pill pill-warning">Do not share these keys publicly</span>
+                </div>
+            </header>
 
             {error && <div className="error-message">{error}</div>}
             {success && <div className="success-message">{success}</div>}
@@ -118,9 +141,12 @@ const ApiSettings = () => {
                 <section className="settings-section">
                     <div className="section-header">
                         <div className="platform-icon google">G</div>
-                        <h2>Google Ads API</h2>
+                        <div>
+                            <h2>Google Ads API</h2>
+                            <p className="section-subtitle">Use your Google Cloud OAuth client and developer token.</p>
+                        </div>
                     </div>
-                    <form onSubmit={saveGoogle}>
+                    <form onSubmit={saveGoogle} className="settings-form">
                         <div className="form-group">
                             <label>Client ID</label>
                             <input
@@ -128,6 +154,7 @@ const ApiSettings = () => {
                                 value={googleConfig.clientId}
                                 onChange={handleGoogleChange}
                                 placeholder="953...apps.googleusercontent.com"
+                                autoComplete="off"
                                 required
                                 disabled={!isEditingGoogle}
                             />
@@ -135,11 +162,12 @@ const ApiSettings = () => {
                         <div className="form-group">
                             <label>Client Secret</label>
                             <input
-                                type="text"
+                                type="password"
                                 name="clientSecret"
                                 value={googleConfig.clientSecret}
                                 onChange={handleGoogleChange}
                                 placeholder="GOCSPX-..."
+                                autoComplete="off"
                                 required
                                 disabled={!isEditingGoogle}
                             />
@@ -151,6 +179,7 @@ const ApiSettings = () => {
                                 value={googleConfig.callbackUrl}
                                 onChange={handleGoogleChange}
                                 placeholder="http://localhost:5001/api/oauth/google/callback"
+                                autoComplete="off"
                                 required
                                 disabled={!isEditingGoogle}
                             />
@@ -163,6 +192,7 @@ const ApiSettings = () => {
                                 value={googleConfig.developerToken}
                                 onChange={handleGoogleChange}
                                 placeholder="Your Google Ads dev token"
+                                autoComplete="off"
                                 required
                                 disabled={!isEditingGoogle}
                             />
@@ -170,15 +200,23 @@ const ApiSettings = () => {
 
                         {!isEditingGoogle ? (
                             <button type="button" className="btn-edit" onClick={() => setIsEditingGoogle(true)}>
-                                View and Edit Credentials
+                                View and edit credentials
                             </button>
                         ) : (
                             <div className="button-group">
                                 <button type="submit" className="btn-save" disabled={saving}>
-                                    {saving ? 'Saving...' : 'Save Google Credentials'}
+                                    {saving ? 'Saving...' : 'Save Google credentials'}
                                 </button>
                                 {hasGoogleConfig && (
-                                    <button type="button" className="btn-cancel" onClick={() => { setIsEditingGoogle(false); fetchCredentials(); }} disabled={saving}>
+                                    <button
+                                        type="button"
+                                        className="btn-cancel"
+                                        onClick={() => {
+                                            setIsEditingGoogle(false);
+                                            fetchCredentials();
+                                        }}
+                                        disabled={saving}
+                                    >
                                         Cancel
                                     </button>
                                 )}
@@ -191,9 +229,12 @@ const ApiSettings = () => {
                 <section className="settings-section">
                     <div className="section-header">
                         <div className="platform-icon meta">M</div>
-                        <h2>Meta Ads (Facebook) API</h2>
+                        <div>
+                            <h2>Meta Ads (Facebook) API</h2>
+                            <p className="section-subtitle">Connect your Meta app to manage Facebook and Instagram ads.</p>
+                        </div>
                     </div>
-                    <form onSubmit={saveMeta}>
+                    <form onSubmit={saveMeta} className="settings-form">
                         <div className="form-group">
                             <label>App ID</label>
                             <input
@@ -201,6 +242,7 @@ const ApiSettings = () => {
                                 value={metaConfig.appId}
                                 onChange={handleMetaChange}
                                 placeholder="763..."
+                                autoComplete="off"
                                 required
                                 disabled={!isEditingMeta}
                             />
@@ -208,11 +250,12 @@ const ApiSettings = () => {
                         <div className="form-group">
                             <label>App Secret</label>
                             <input
-                                type="text"
+                                type="password"
                                 name="appSecret"
                                 value={metaConfig.appSecret}
                                 onChange={handleMetaChange}
                                 placeholder="ed42..."
+                                autoComplete="off"
                                 required
                                 disabled={!isEditingMeta}
                             />
@@ -224,6 +267,7 @@ const ApiSettings = () => {
                                 value={metaConfig.callbackUrl}
                                 onChange={handleMetaChange}
                                 placeholder="https://your-ngrok.ngrok-free.dev/api/oauth/meta/callback"
+                                autoComplete="off"
                                 required
                                 disabled={!isEditingMeta}
                             />
@@ -236,21 +280,30 @@ const ApiSettings = () => {
                                 value={metaConfig.configId}
                                 onChange={handleMetaChange}
                                 placeholder="132..."
+                                autoComplete="off"
                                 disabled={!isEditingMeta}
                             />
                         </div>
 
                         {!isEditingMeta ? (
                             <button type="button" className="btn-edit" onClick={() => setIsEditingMeta(true)}>
-                                View and Edit Credentials
+                                View and edit credentials
                             </button>
                         ) : (
                             <div className="button-group">
                                 <button type="submit" className="btn-save" disabled={saving}>
-                                    {saving ? 'Saving...' : 'Save Meta Credentials'}
+                                    {saving ? 'Saving...' : 'Save Meta credentials'}
                                 </button>
                                 {hasMetaConfig && (
-                                    <button type="button" className="btn-cancel" onClick={() => { setIsEditingMeta(false); fetchCredentials(); }} disabled={saving}>
+                                    <button
+                                        type="button"
+                                        className="btn-cancel"
+                                        onClick={() => {
+                                            setIsEditingMeta(false);
+                                            fetchCredentials();
+                                        }}
+                                        disabled={saving}
+                                    >
                                         Cancel
                                     </button>
                                 )}

@@ -379,30 +379,47 @@ const CampaignForm = () => {
 
     const noPlatformsConnected = !platformsLoading && connectedPlatforms.length === 0;
 
-    if (loading && isEdit && !formData.name) return <div className="loading-state">Loading draft...</div>;
+    if (loading && isEdit && !formData.name) {
+        return (
+            <div className="form-loading-shell">
+                <div className="form-loading-card">
+                    <div className="form-loading-title" />
+                    <div className="form-loading-line" />
+                    <div className="form-loading-block" />
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="form-container">
-            <div className="form-header">
-                <div className="title-section">
+            <header className="form-header">
+                <div className="form-header-main">
                     <h1>{isEdit ? 'Edit Campaign Draft' : 'Create New Campaign'}</h1>
-                    {isEdit && (
-                        <div className={`status-badge status-${formData.status.toLowerCase()}`}>
-                            {formData.status}
-                        </div>
-                    )}
-                    {isEdit && formData.created_by && (
-                        <span className="creator-badge">
-                            Created by: {formData.created_by.name} ({formData.created_by.email})
-                        </span>
-                    )}
+                    <p className="form-subtitle">
+                        {isEdit
+                            ? 'Update campaign details, ad groups, and creatives. Save as draft or set to ready for publishing.'
+                            : 'Set up your campaign name, platform, budget, and ad creatives in one place.'}
+                    </p>
+                    <div className="form-header-badges">
+                        {isEdit && (
+                            <span className={`status-badge status-${formData.status.toLowerCase()}`}>
+                                {formData.status}
+                            </span>
+                        )}
+                        {isEdit && formData.created_by && (
+                            <span className="creator-badge">
+                                {formData.created_by.name}
+                            </span>
+                        )}
+                    </div>
                 </div>
                 {isEdit && authService.getCurrentUser()?.role === 'ADMIN' && (
                     <button type="button" onClick={handleDelete} disabled={loading} className="btn-delete">
                         Delete Campaign
                     </button>
                 )}
-            </div>
+            </header>
 
             <form className="campaign-form">
                 {error && <div className="error-message">{error}</div>}
@@ -413,13 +430,12 @@ const CampaignForm = () => {
                     </div>
                 )}
 
-                {/* No platforms connected warning */}
                 {noPlatformsConnected && (
                     <div className="no-platforms-warning">
                         <div className="warning-icon">⚠️</div>
                         <div className="warning-content">
                             <strong>No Platforms Connected</strong>
-                            <p>You need to connect at least one advertising platform before creating a campaign.</p>
+                            <p>Connect at least one advertising platform before creating a campaign.</p>
                             <button type="button" className="btn-connect-link" onClick={() => navigate('/platforms')}>
                                 Go to Platforms →
                             </button>
@@ -427,8 +443,11 @@ const CampaignForm = () => {
                     </div>
                 )}
 
-                <section className="form-section">
-                    <h2>1. Campaign Details</h2>
+                <section className="form-section form-section-card">
+                    <div className="form-section-header">
+                        <h2>1. Campaign Details</h2>
+                        <p className="form-section-subtitle">Name, platform, objective, budget, and schedule.</p>
+                    </div>
                     <div className="form-group">
                         <label>Campaign Name <span className="required">*</span></label>
                         <input
@@ -558,9 +577,12 @@ const CampaignForm = () => {
                     </div>
                 </section>
 
-                <section className="form-section">
-                    <div className="section-header">
-                        <h2>2. Ad Groups & Creatives</h2>
+                <section className="form-section form-section-card">
+                    <div className="form-section-header form-section-header-row">
+                        <div>
+                            <h2>2. Ad Groups & Creatives</h2>
+                            <p className="form-section-subtitle">Ad group names and headline/description copy for your ads.</p>
+                        </div>
                         <button type="button" className="btn-secondary" onClick={addAdGroup}>+ Add Ad Group</button>
                     </div>
 
@@ -636,11 +658,13 @@ const CampaignForm = () => {
                     ))}
                 </section>
 
-                <div className="btn-group-footer">
-                    <button type="button" onClick={() => navigate('/drafts')} className="btn-cancel">Cancel</button>
-                    <div className="save-actions">
+                <div className="form-footer">
+                    <button type="button" onClick={() => navigate('/drafts')} className="btn-cancel">
+                        Cancel
+                    </button>
+                    <div className="form-footer-actions">
                         {formData.status === 'READY' && (authService.getCurrentUser()?.role === 'ADMIN' || authService.getCurrentUser()?.role === 'CLIENT') && (
-                            <button type="button" onClick={handlePublish} disabled={loading} className="btn-publish">
+                            <button type="button" onClick={handlePublish} disabled={loading} className="btn-primary">
                                 {loading ? 'Starting...' : 'Publish to Platform'}
                             </button>
                         )}
@@ -649,7 +673,7 @@ const CampaignForm = () => {
                                 <button type="button" onClick={(e) => handleSubmit(e, 'DRAFT')} disabled={loading || noPlatformsConnected} className="btn-save-draft">
                                     Save as Draft
                                 </button>
-                                <button type="button" onClick={(e) => handleSubmit(e, 'READY')} disabled={loading || noPlatformsConnected} className="btn-set-ready">
+                                <button type="button" onClick={(e) => handleSubmit(e, 'READY')} disabled={loading || noPlatformsConnected} className="btn-primary">
                                     {formData.status === 'READY' ? 'Update Ready' : 'Set to Ready'}
                                 </button>
                             </>

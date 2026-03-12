@@ -43,6 +43,66 @@ const login = async (req, res) => {
     }
 };
 
+/**
+ * Request password reset
+ * POST /auth/forgot-password
+ */
+const forgotPassword = async (req, res) => {
+    try {
+        const { email } = req.body;
+
+        await authService.requestPasswordReset(email);
+
+        res.status(200).json({
+            success: true,
+            message: 'If an account with that email exists, a password reset link has been sent',
+            timestamp: new Date().toISOString()
+        });
+    } catch (error) {
+        logger.error('AUTH_CONTROLLER', 'Forgot password failed', error);
+
+        res.status(error.statusCode || 500).json({
+            success: false,
+            error: {
+                code: error.code || 'INTERNAL_SERVER_ERROR',
+                message: error.message || 'An internal server error occurred'
+            },
+            timestamp: new Date().toISOString()
+        });
+    }
+};
+
+/**
+ * Reset password with token
+ * POST /auth/reset-password
+ */
+const resetPassword = async (req, res) => {
+    try {
+        const { token, password } = req.body;
+
+        await authService.resetPassword(token, password);
+
+        res.status(200).json({
+            success: true,
+            message: 'Password has been reset successfully',
+            timestamp: new Date().toISOString()
+        });
+    } catch (error) {
+        logger.error('AUTH_CONTROLLER', 'Reset password failed', error);
+
+        res.status(error.statusCode || 500).json({
+            success: false,
+            error: {
+                code: error.code || 'INTERNAL_SERVER_ERROR',
+                message: error.message || 'An internal server error occurred'
+            },
+            timestamp: new Date().toISOString()
+        });
+    }
+};
+
 module.exports = {
-    login
+    login,
+    forgotPassword,
+    resetPassword
 };

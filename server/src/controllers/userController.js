@@ -2,6 +2,7 @@ const userService = require('../services/userService');
 const Client = require('../models/Client');
 const User = require('../models/User');
 const logger = require('../utils/logger');
+const { sendClientWelcomeEmail } = require('../utils/emailService');
 
 /**
  * User Controller
@@ -103,7 +104,7 @@ const getUsers = async (req, res) => {
  */
 const createUser = async (req, res) => {
     try {
-        const { name, email, password, role } = req.body;
+        const { name, email, role } = req.body;
 
         let client_id = null;
 
@@ -114,14 +115,37 @@ const createUser = async (req, res) => {
             client_id = client._id;
         }
 
+        // Generate a secure temporary password rather than accepting one from the form
+        const generateTempPassword = () => {
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%^&*';
+            let pwd = '';
+            for (let i = 0; i < 12; i += 1) {
+                pwd += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return pwd;
+        };
+
+        const tempPassword = generateTempPassword();
+
         const newUser = await userService.createUser({
             name,
             email,
-            password,
+            password: tempPassword,
             role: role || 'CLIENT',
             client_id,
             status: 'active'
         });
+
+        // Fire-and-forget welcome email with temporary password
+        if (role === 'CLIENT') {
+            sendClientWelcomeEmail({
+                name,
+                email,
+                tempPassword
+            }).catch((err) => {
+                logger.error('USER_CONTROLLER', 'Failed to send client welcome email', err);
+            });
+        }
 
         res.status(201).json({
             success: true,

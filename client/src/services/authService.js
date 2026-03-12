@@ -34,6 +34,51 @@ const authService = {
     },
 
     /**
+     * Request password reset link
+     * @param {string} email
+     */
+    requestPasswordReset: async (email) => {
+        const response = await fetch(`${API_URL}/auth/forgot-password`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ email })
+        });
+
+        const result = await response.json();
+
+        if (!result.success) {
+            throw new Error(result.error?.message || 'Failed to request password reset');
+        }
+
+        return result;
+    },
+
+    /**
+     * Reset password with token
+     * @param {string} token
+     * @param {string} password
+     */
+    resetPassword: async (token, password) => {
+        const response = await fetch(`${API_URL}/auth/reset-password`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ token, password })
+        });
+
+        const result = await response.json();
+
+        if (!result.success) {
+            throw new Error(result.error?.message || 'Failed to reset password');
+        }
+
+        return result;
+    },
+
+    /**
      * Logout user
      */
     logout: () => {

@@ -5,6 +5,8 @@ import Platforms from './pages/Platforms';
 import DraftList from './pages/Drafts/DraftList';
 import CampaignForm from './pages/Drafts/CampaignForm';
 import Login from './pages/Login';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 import ApiSettings from './pages/Settings/ApiSettings';
 import AdminClients from './pages/Admin/AdminClients';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -19,6 +21,8 @@ function App() {
             <Routes>
                 {/* Public Routes */}
                 <Route path="/login" element={<Login />} />
+                <Route path="/forgot-password" element={<ForgotPassword />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
 
                 {/* Protected Routes */}
                 <Route path="/" element={

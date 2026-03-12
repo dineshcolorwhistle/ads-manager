@@ -29,7 +29,6 @@ const AdminClients = () => {
     const [formData, setFormData] = useState({
         name: '',
         email: '',
-        password: '',
         role: 'CLIENT',
     });
 
@@ -80,8 +79,8 @@ const AdminClients = () => {
             });
             const result = await res.json();
             if (result.success) {
-                setSuccess(`✅ Client "${formData.name}" created successfully!`);
-                setFormData({ name: '', email: '', password: '', role: 'CLIENT' });
+                setSuccess(`✅ Client "${formData.name}" created successfully! A password setup email has been sent to ${formData.email}.`);
+                setFormData({ name: '', email: '', role: 'CLIENT' });
                 fetchUsers();
             } else {
                 setError(result.error?.message || 'Failed to create user');
@@ -182,7 +181,7 @@ const AdminClients = () => {
 
             <div className="admin-grid">
                 {/* Create Form */}
-                <section className="card create-card">
+                <section className="client-section">
                     <h3>➕ New Client User</h3>
                     <form onSubmit={handleSubmit} className="admin-form">
                         <div className="form-group">
@@ -211,22 +210,9 @@ const AdminClients = () => {
                                 autoComplete="off"
                             />
                         </div>
-                        <div className="form-group">
-                            <label htmlFor="password">Initial Password</label>
-                            <input
-                                id="password"
-                                type="password"
-                                name="password"
-                                value={formData.password}
-                                onChange={handleInputChange}
-                                required
-                                minLength={8}
-                                placeholder="Min 8 characters"
-                                autoComplete="new-password"
-                            />
-                        </div>
-
-
+                        <p className="form-helper-text">
+                            A secure, temporary password will be generated automatically. The client will receive an email with instructions to set their own password.
+                        </p>
 
                         <button type="submit" className="btn btn-primary btn-block" disabled={submitting}>
                             {submitting ? 'Creating...' : '+ Create Client User'}
@@ -235,7 +221,7 @@ const AdminClients = () => {
                 </section>
 
                 {/* Users Table */}
-                <section className="card">
+                <section className="client-section">
                     <div className="table-header">
                         <h3>All Users</h3>
                         <button className="btn btn-outline btn-sm" onClick={fetchUsers}>↻ Refresh</button>
