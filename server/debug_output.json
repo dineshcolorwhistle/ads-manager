@@ -1,0 +1,28 @@
+{
+  "status": "Connected to DB",
+  "clientId": "69a9125f55c6bef9e8c964f0",
+  "rawDbRecords": [
+    {
+      "platform": "google",
+      "id": "69a912c455c6bef9e8c9650a"
+    },
+    {
+      "platform": "meta",
+      "id": "69a912fe55c6bef9e8c9651f"
+    }
+  ],
+  "googleConfig": {
+    "clientId": "953194731985-5f4q5ojr8vk78a9a3dgvdev16njhv28g.apps.googleusercontent.com",
+    "clientSecret": "GOCS...",
+    "callbackUrl": "http://localhost:5001/api/oauth/google/callback",
+    "developerToken": "PRESENT"
+  },
+  "googleUrl": "https://accounts.google.com/o/oauth2/v2/auth?access_type=offline&scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fadwords%20https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fuserinfo.email%20https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fuserinfo.profile&state=69a9125f55c6bef9e8c964f0&prompt=consent&response_type=code&client_id=953194731985-5f4q5ojr8vk78a9a3dgvdev16njhv28g.apps.googleusercontent.com&redirect_uri=http%3A%2F%2Flocalhost%3A5001%2Fapi%2Foauth%2Fgoogle%2Fcallback",
+  "metaConfig": {
+    "appId": "763510333490330",
+    "appSecret": "ed42...",
+    "callbackUrl": "https://nonschematically-escheatable-georgine.ngrok-free.dev/api/oauth/meta/callback",
+    "configId": "1320371283235293"
+  },
+  "metaUrl": "https://www.facebook.com/v21.0/dialog/oauth?client_id=763510333490330&redirect_uri=https%3A%2F%2Fnonschematically-escheatable-georgine.ngrok-free.dev%2Fapi%2Foauth%2Fmeta%2Fcallback&scope=ads_management%2Cads_read&state=69a9125f55c6bef9e8c964f0&response_type=code"
+}

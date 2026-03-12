@@ -1,0 +1,100 @@
+{
+  "status": "Connected",
+  "totalCredentials": 5,
+  "credentials": [
+    {
+      "id": "69a68ca70972f609f97ed5de",
+      "client_id": "69897ce6efec076b70207e1b",
+      "platform": "meta",
+      "platform_account_id": "act_2312362949258381",
+      "token_expiry": "2026-05-01T12:35:45.402Z"
+    },
+    {
+      "id": "69a81b7b5fd56355ccea3f2e",
+      "client_id": "69a81b7b5fd56355ccea3f2c",
+      "platform": "google",
+      "platform_account_id": "test_acc_123",
+      "token_expiry": "2026-03-04T12:46:03.304Z"
+    },
+    {
+      "id": "69a928915afc1e11343fa3c3",
+      "client_id": "69a9125f55c6bef9e8c964f0",
+      "platform": "meta",
+      "platform_account_id": "act_2312362949258381",
+      "token_expiry": "2026-05-03T08:18:30.304Z"
+    },
+    {
+      "id": "69a92a3c5afc1e11343fa3cd",
+      "client_id": "69a9125f55c6bef9e8c964f0",
+      "platform": "google",
+      "platform_account_id": "google_pending_1772694076821",
+      "token_expiry": "2026-03-05T08:01:16.821Z"
+    },
+    {
+      "id": "69a92a575afc1e11343fa3ce",
+      "client_id": "69a9125f55c6bef9e8c964f0",
+      "platform": "google",
+      "platform_account_id": "google_pending_1772694104096",
+      "token_expiry": "2026-03-05T08:01:44.096Z"
+    }
+  ],
+  "totalAccounts": 8,
+  "accounts": [
+    {
+      "id": "69931fc0633c1a83fb848627",
+      "client_id": "69897ce6efec076b70207e1b",
+      "platform": "google",
+      "name": "Google Ads Account (1841872401)",
+      "platform_account_id": "1841872401"
+    },
+    {
+      "id": "69931fc0633c1a83fb848628",
+      "client_id": "69897ce6efec076b70207e1b",
+      "platform": "google",
+      "name": "Google Ads Account (7463352621)",
+      "platform_account_id": "7463352621"
+    },
+    {
+      "id": "69a68ca70972f609f97ed5df",
+      "client_id": "69897ce6efec076b70207e1b",
+      "platform": "meta",
+      "name": "Manoj Test",
+      "platform_account_id": "act_2312362949258381"
+    },
+    {
+      "id": "69a68ca70972f609f97ed5e0",
+      "client_id": "69897ce6efec076b70207e1b",
+      "platform": "meta",
+      "name": "Manoj Test AD Acc",
+      "platform_account_id": "act_1932680794037604"
+    },
+    {
+      "id": "69a68ca70972f609f97ed5e1",
+      "client_id": "69897ce6efec076b70207e1b",
+      "platform": "meta",
+      "name": "CW DEV Ad account",
+      "platform_account_id": "act_894311186553811"
+    },
+    {
+      "id": "69a928915afc1e11343fa3c4",
+      "client_id": "69a9125f55c6bef9e8c964f0",
+      "platform": "meta",
+      "name": "Manoj Test",
+      "platform_account_id": "act_2312362949258381"
+    },
+    {
+      "id": "69a928915afc1e11343fa3c5",
+      "client_id": "69a9125f55c6bef9e8c964f0",
+      "platform": "meta",
+      "name": "Manoj Test AD Acc",
+      "platform_account_id": "act_1932680794037604"
+    },
+    {
+      "id": "69a928915afc1e11343fa3c6",
+      "client_id": "69a9125f55c6bef9e8c964f0",
+      "platform": "meta",
+      "name": "CW DEV Ad account",
+      "platform_account_id": "act_894311186553811"
+    }
+  ]
+}

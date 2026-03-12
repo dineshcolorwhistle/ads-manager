@@ -1,0 +1,95 @@
+.home {
+    padding: 2rem 0;
+}
+
+.home h2 {
+    color: #1d1d1d;
+    margin-bottom: 1rem;
+}
+
+.home p {
+    color: #1d1d1d;
+    font-size: 1.125rem;
+    margin-bottom: 2rem;
+}
+
+.status-card {
+    background: #ffffff;
+    border-radius: 8px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    border-left: 4px solid #e5e7eb;
+}
+
+.status-card.healthy {
+    border-left-color: #34a853;
+}
+
+.status-card.unhealthy {
+    border-left-color: #ea4338;
+}
+
+.status-card h3 {
+    margin-top: 0;
+    color: #1d1d1d;
+}
+
+.status-message {
+    font-size: 1.125rem;
+    font-weight: 500;
+    margin-bottom: 1rem;
+}
+
+.status-details {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.status-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem;
+    background: #e5e7eb;
+    border-radius: 4px;
+}
+
+.status-item .label {
+    font-weight: 600;
+    color: #1d1d1d;
+}
+
+.status-item .value.success {
+    color: #34a853;
+    font-weight: 600;
+}
+
+.status-item .value.error {
+    color: #ea4338;
+    font-weight: 600;
+}
+
+.info-section {
+    background: #ffffff;
+    border-radius: 8px;
+    padding: 2rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.info-section h3 {
+    margin-top: 0;
+    color: #4285f4;
+}
+
+.info-section ul {
+    list-style: none;
+    padding: 0;
+}
+
+.info-section li {
+    padding: 0.5rem 0;
+    color: #1d1d1d;
+    font-size: 1rem;
+}
