@@ -29,7 +29,7 @@ const Login = () => {
             <div className="login-shell">
                 <div className="login-brand-panel">
                     <div className="login-logo">
-                        <span>AC</span>
+                        <span>ACM</span>
                     </div>
                     <h1>Ads Campaigner</h1>
                     <p>Plan, launch, and optimize ad campaigns from a single, unified dashboard.</p>
