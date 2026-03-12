@@ -83,7 +83,7 @@ function Platforms() {
                 {/* Google Ads Card */}
                 <div className="platform-card google">
                     <div className="card-header">
-                        <img src="https://www.gstatic.com/images/branding/product/1x/google_ads_48dp.png" alt="Google Ads" />
+                        <img src="/google-ads-logo.svg" alt="Google Ads" className="platform-logo" />
                         <h3>Google Ads</h3>
                         {googleAccounts.length > 0 ? (
                             <span className="status-badge connected">Connected</span>
@@ -117,7 +117,7 @@ function Platforms() {
                 {/* Meta Ads Card */}
                 <div className="platform-card meta">
                     <div className="card-header">
-                        <img src="https://upload.wikimedia.org/wikipedia/commons/7/7b/Meta_Platforms_Inc._logo.svg" alt="Meta Ads" />
+                        <img src="/meta-ads-logo.svg" alt="Meta Ads" className="platform-logo" />
                         <h3>Meta Ads</h3>
                         {metaAccounts.length > 0 ? (
                             <span className="status-badge connected">Connected</span>

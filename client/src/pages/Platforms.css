@@ -1,20 +1,42 @@
 .platforms-page {
     padding: 2rem 0;
+    color: var(--bg-white);
 }
 
 .page-header {
     margin-bottom: 2rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding-bottom: 1.5rem;
+}
+
+body:not(.dark-mode) .page-header {
     border-bottom: 1px solid var(--color-grey-light);
-    padding-bottom: 1rem;
 }
 
 .page-header h2 {
+    color: var(--bg-white);
+    font-size: 2rem;
+    margin: 0 0 0.5rem 0;
+    font-weight: 700;
+}
+
+/* Fallback for light mode if they are using it */
+body:not(.dark-mode) .platforms-page {
     color: var(--text-primary);
-    margin-bottom: 0.5rem;
+}
+
+body:not(.dark-mode) .page-header h2 {
+    color: #0e1c81;
 }
 
 .page-header p {
-    color: var(--text-secondary);
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 1.1rem;
+    margin: 0;
+}
+
+body:not(.dark-mode) .page-header p {
+    color: var(--bg-white);
 }
 
 .platform-grid {
@@ -24,91 +46,153 @@
 }
 
 .platform-card {
-    background: var(--color-white);
+    background: var(--bg-card, #1e1e1e);
     border-radius: 12px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
     overflow: hidden;
-    border: 1px solid var(--color-grey-light);
-    transition: transform 0.2s, box-shadow 0.2s;
+    border-top: 5px solid #ccc;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+body:not(.dark-mode) .platform-card {
+    background: var(--color-white);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.06);
+}
+
+.platform-card.google {
+    border-top-color: #4285f4;
+}
+
+.platform-card.meta {
+    border-top-color: #ea2e6d;
 }
 
 .platform-card:hover {
     transform: translateY(-5px);
-    box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.3);
+}
+
+body:not(.dark-mode) .platform-card:hover {
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1);
 }
 
 .card-header {
     padding: 1.5rem;
     display: flex;
     align-items: center;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+body:not(.dark-mode) .card-header {
     border-bottom: 1px solid var(--color-grey-light);
 }
 
-.card-header img {
+.platform-logo {
     height: 48px;
     margin-right: 1.5rem;
+    object-fit: contain;
 }
 
 .card-header h3 {
     flex-grow: 1;
-    font-size: 1.25rem;
+    font-size: 1.3rem;
+    color: var(--bg-white);
+    margin: 0;
+}
+
+body:not(.dark-mode) .card-header h3 {
     color: var(--text-primary);
 }
 
 .status-badge {
-    padding: 0.25rem 0.75rem;
-    border-radius: 20px;
+    padding: 0.35rem 0.75rem;
+    border-radius: 50px;
     font-size: 0.85rem;
-    font-weight: 500;
+    font-weight: 600;
 }
 
 .status-badge.connected {
-    background-color: rgba(52, 168, 83, 0.1);
-    color: var(--color-google-green);
+    background: rgba(52, 168, 83, 0.15);
+    color: #81c995;
+}
+
+body:not(.dark-mode) .status-badge.connected {
+    background: rgba(52, 168, 83, 0.1);
+    color: #2c8c45;
 }
 
 .status-badge.disconnected {
-    background-color: rgba(234, 67, 56, 0.1);
-    color: var(--color-google-red);
+    background: rgba(234, 67, 56, 0.15);
+    color: #f28b82;
+}
+
+body:not(.dark-mode) .status-badge.disconnected {
+    background: rgba(234, 67, 56, 0.1);
+    color: #c9352e;
 }
 
 .card-body {
     padding: 1.5rem;
     min-height: 200px;
+    display: flex;
+    flex-direction: column;
+}
+
+.account-list {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
 }
 
 .account-list h4 {
     font-size: 1rem;
+    color: rgba(255, 255, 255, 0.7);
+    margin: 0 0 1rem 0;
+}
+
+body:not(.dark-mode) .account-list h4 {
     color: var(--text-secondary);
-    margin-bottom: 1rem;
 }
 
 .account-list ul {
     list-style: none;
     padding: 0;
-    margin-bottom: 1.5rem;
+    margin: 0 0 1.5rem 0;
     max-height: 200px;
     overflow-y: auto;
 }
 
 .account-list li {
-    padding: 0.75rem;
-    background: #f8f9fa;
+    padding: 1rem;
+    background: #2a2a2a;
     border-radius: 8px;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.75rem;
     display: flex;
     flex-direction: column;
 }
 
+body:not(.dark-mode) .account-list li {
+    background: #f8f9fa;
+}
+
 .acc-name {
     font-weight: 600;
+    color: var(--bg-white);
+    font-size: 1rem;
+}
+
+body:not(.dark-mode) .acc-name {
     color: var(--text-primary);
 }
 
 .acc-id {
     font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.6);
+    margin-top: 0.35rem;
+}
+
+body:not(.dark-mode) .acc-id {
     color: var(--text-secondary);
-    margin-top: 0.25rem;
 }
 
 .connect-prompt {
@@ -118,11 +202,17 @@
     justify-content: center;
     align-items: center;
     height: 100%;
+    flex-grow: 1;
 }
 
 .connect-prompt p {
-    color: var(--text-secondary);
+    color: rgba(255, 255, 255, 0.8);
     margin-bottom: 1.5rem;
+    font-size: 0.95rem;
+}
+
+body:not(.dark-mode) .connect-prompt p {
+    color: var(--text-secondary);
 }
 
 .btn {
@@ -131,50 +221,73 @@
     font-weight: 600;
     cursor: pointer;
     border: none;
-    transition: background-color 0.2s;
+    transition: all 0.2s ease;
     width: 100%;
 }
 
 .btn-google {
-    background-color: var(--color-google-blue);
-    color: var(--color-white);
+    background-color: #4285f4;
+    color: var(--bg-white);
+    box-shadow: 0 4px 6px rgba(66, 133, 244, 0.3);
 }
 
 .btn-google:hover {
-    background-color: var(--primary-hover);
+    background-color: #3367d6;
 }
 
 .btn-meta {
-    background-color: #0668E1;
-    color: var(--color-white);
+    background-color: #ea2e6d;
+    color: var(--bg-white);
+    box-shadow: 0 4px 6px rgba(234, 46, 109, 0.3);
 }
 
 .btn-meta:hover {
-    background-color: #0559c1;
+    background-color: #c9235a;
 }
 
 .btn-danger {
+    background-color: rgba(234, 67, 56, 0.15);
+    color: #f28b82;
+    border: 1px solid rgba(242, 139, 130, 0.3);
+    margin-top: auto;
+}
+
+body:not(.dark-mode) .btn-danger {
     background-color: rgba(234, 67, 56, 0.1);
-    color: var(--color-google-red);
+    color: #c9352e;
     border: 1px solid rgba(234, 67, 56, 0.2);
 }
 
 .btn-danger:hover {
-    background-color: var(--color-google-red);
-    color: var(--color-white);
+    background-color: #ea4338;
+    color: var(--bg-white);
+}
+
+body:not(.dark-mode) .btn-danger:hover {
+    background-color: #ea4338;
+    color: var(--bg-white);
 }
 
 .error-message {
     margin-top: 2rem;
     padding: 1rem;
-    background-color: rgba(234, 67, 56, 0.1);
-    color: var(--color-google-red);
+    background-color: rgba(234, 67, 56, 0.15);
+    color: #f28b82;
     border-radius: 8px;
     text-align: center;
+}
+
+body:not(.dark-mode) .error-message {
+    background-color: rgba(234, 67, 56, 0.1);
+    color: var(--color-google-red);
 }
 
 .loading-spinner {
     margin-top: 2rem;
     text-align: center;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+body:not(.dark-mode) .loading-spinner {
     color: var(--text-secondary);
 }

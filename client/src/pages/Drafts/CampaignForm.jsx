@@ -607,7 +607,7 @@ const CampaignForm = () => {
                                         {validationErrors.ad_groups?.[agIndex]?.creatives?.[cIndex]?.headlines && (
                                             <span className="field-error">{validationErrors.ad_groups[agIndex].creatives[cIndex].headlines}</span>
                                         )}
-                                        <button type="button" onClick={() => addTextField(agIndex, cIndex, 'headlines')} className="btn-text-only">+ Add Headline</button>
+                                        <button type="button" onClick={() => addTextField(agIndex, cIndex, 'headlines')} className="btn-text-only" style={{ display: 'none' }}>+ Add Headline</button>
                                     </div>
 
                                     <div className="text-field-group">
@@ -628,7 +628,7 @@ const CampaignForm = () => {
                                         {validationErrors.ad_groups?.[agIndex]?.creatives?.[cIndex]?.descriptions && (
                                             <span className="field-error">{validationErrors.ad_groups[agIndex].creatives[cIndex].descriptions}</span>
                                         )}
-                                        <button type="button" onClick={() => addTextField(agIndex, cIndex, 'descriptions')} className="btn-text-only">+ Add Description</button>
+                                        <button type="button" onClick={() => addTextField(agIndex, cIndex, 'descriptions')} className="btn-text-only" style={{ display: 'none' }}>+ Add Description</button>
                                     </div>
                                 </div>
                             ))}
