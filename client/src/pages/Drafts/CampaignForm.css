@@ -300,6 +300,16 @@
     margin-top: 0.75rem;
 }
 
+.creative-block .text-field-group.creative-destination-url {
+    margin-top: 1rem;
+}
+
+.creative-block .label-hint {
+    font-weight: 400;
+    color: #9ca3af;
+    font-size: 0.85em;
+}
+
 .input-with-action {
     display: flex;
     gap: 0.5rem;

@@ -10,6 +10,14 @@ const CampaignForm = () => {
     const navigate = useNavigate();
     const isEdit = !!id;
 
+    const defaultTargeting = () => ({ countries: ['US'], age_min: 18, age_max: 65, genders: [] });
+    const defaultCreative = () => ({
+        name: 'Text Creative 1',
+        headlines: [{ text: '' }],
+        descriptions: [{ text: '' }],
+        final_urls: [''],
+        call_to_action_type: 'LEARN_MORE'
+    });
     const [formData, setFormData] = useState({
         name: '',
         platform: '',
@@ -19,16 +27,12 @@ const CampaignForm = () => {
         currency: 'USD',
         status: 'DRAFT',
         platform_account_id: '',
+        facebook_page_id: '',
         ad_groups: [
             {
                 name: 'Default Ad Group',
-                creatives: [
-                    {
-                        name: 'Text Creative 1',
-                        headlines: [{ text: '' }],
-                        descriptions: [{ text: '' }]
-                    }
-                ]
+                targeting: defaultTargeting(),
+                creatives: [defaultCreative()]
             }
         ]
     });
@@ -94,8 +98,9 @@ const CampaignForm = () => {
                         data.start_date = new Date(data.start_date).toISOString().split('T')[0];
                     }
                     if (!data.ad_groups || data.ad_groups.length === 0) {
-                        data.ad_groups = [{ name: '', creatives: [{ name: '', headlines: [{ text: '' }], descriptions: [{ text: '' }] }] }];
+                        data.ad_groups = [{ name: '', targeting: defaultTargeting(), creatives: [defaultCreative()] }];
                     }
+                    normalizeAdGroupsForUI(data);
                     setFormData(data);
                     // Stop polling once status is no longer PUBLISHING
                     if (data.status !== 'PUBLISHING') {
@@ -110,6 +115,19 @@ const CampaignForm = () => {
         return () => clearInterval(pollInterval);
     }, [formData.status]);
 
+    const normalizeAdGroupsForUI = (data) => {
+        if (!data.ad_groups) return;
+        data.ad_groups.forEach(ag => {
+            if (!ag.targeting || !Array.isArray(ag.targeting.countries)) {
+                ag.targeting = defaultTargeting();
+            }
+            (ag.creatives || []).forEach(c => {
+                if (!Array.isArray(c.final_urls) || c.final_urls.length === 0) c.final_urls = [''];
+                if (c.call_to_action_type === undefined || c.call_to_action_type === null) c.call_to_action_type = 'LEARN_MORE';
+            });
+        });
+    };
+
     const loadDraft = async () => {
         try {
             setLoading(true);
@@ -118,10 +136,10 @@ const CampaignForm = () => {
             if (data.start_date) {
                 data.start_date = new Date(data.start_date).toISOString().split('T')[0];
             }
-            // Ensure UI-friendly structure if missing children
             if (!data.ad_groups || data.ad_groups.length === 0) {
-                data.ad_groups = [{ name: '', creatives: [{ name: '', headlines: [{ text: '' }], descriptions: [{ text: '' }] }] }];
+                data.ad_groups = [{ name: '', targeting: defaultTargeting(), creatives: [defaultCreative()] }];
             }
+            normalizeAdGroupsForUI(data);
             setFormData(data);
         } catch (err) {
             setError('Failed to load draft details.');
@@ -189,6 +207,14 @@ const CampaignForm = () => {
                         }
                         if (!hasDescription) {
                             cErr.descriptions = 'At least one description is required';
+                        }
+                        if (formData.platform === 'meta') {
+                            const urls = creative.final_urls && Array.isArray(creative.final_urls)
+                                ? creative.final_urls.filter(u => u && String(u).trim() !== '')
+                                : [];
+                            if (urls.length === 0) {
+                                cErr.final_urls = 'At least one destination URL is required for Meta';
+                            }
                         }
                         if (Object.keys(cErr).length > 0) {
                             cErrors[cIndex] = cErr;
@@ -261,8 +287,22 @@ const CampaignForm = () => {
     const addAdGroup = () => {
         setFormData(prev => ({
             ...prev,
-            ad_groups: [...prev.ad_groups, { name: '', creatives: [{ name: '', headlines: [{ text: '' }], descriptions: [{ text: '' }] }] }]
+            ad_groups: [...prev.ad_groups, { name: '', targeting: defaultTargeting(), creatives: [defaultCreative()] }]
         }));
+    };
+
+    const handleTargetingChange = (agIndex, key, value) => {
+        const newAdGroups = [...formData.ad_groups];
+        const ag = newAdGroups[agIndex];
+        ag.targeting = ag.targeting || defaultTargeting();
+        if (key === 'countries') {
+            ag.targeting.countries = value ? String(value).split(',').map(c => c.trim().toUpperCase()).filter(Boolean) : ['US'];
+        } else if (key === 'genders') {
+            ag.targeting.genders = value === 'male' ? [1] : value === 'female' ? [2] : [];
+        } else {
+            ag.targeting[key] = value === '' || value == null ? undefined : Number(value);
+        }
+        setFormData(prev => ({ ...prev, ad_groups: newAdGroups }));
     };
 
     const handleCreativeChange = (agIndex, cIndex, field, value, itemIndex) => {
@@ -273,6 +313,11 @@ const CampaignForm = () => {
             const newList = [...creative[field]];
             newList[itemIndex] = { ...newList[itemIndex], text: value };
             creative[field] = newList;
+        } else if (field === 'final_urls') {
+            const newList = [...(creative.final_urls || [''])];
+            if (itemIndex >= newList.length) newList.length = itemIndex + 1;
+            newList[itemIndex] = value;
+            creative.final_urls = newList;
         } else {
             creative[field] = value;
         }
@@ -607,6 +652,51 @@ const CampaignForm = () => {
                                 )}
                             </div>
 
+                            {formData.platform === 'meta' && (
+                                <div className="form-row targeting-row">
+                                    <div className="form-group">
+                                        <label>Targeting: Countries</label>
+                                        <input
+                                            value={(ag.targeting && ag.targeting.countries) ? ag.targeting.countries.join(', ') : 'US'}
+                                            onChange={(e) => handleTargetingChange(agIndex, 'countries', e.target.value)}
+                                            placeholder="e.g. US, GB, CA"
+                                        />
+                                        <small>Comma-separated country codes (e.g. US, GB)</small>
+                                    </div>
+                                    <div className="form-group">
+                                        <label>Age min</label>
+                                        <input
+                                            type="number"
+                                            min={13}
+                                            max={65}
+                                            value={ag.targeting?.age_min ?? 18}
+                                            onChange={(e) => handleTargetingChange(agIndex, 'age_min', e.target.value)}
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label>Age max</label>
+                                        <input
+                                            type="number"
+                                            min={13}
+                                            max={65}
+                                            value={ag.targeting?.age_max ?? 65}
+                                            onChange={(e) => handleTargetingChange(agIndex, 'age_max', e.target.value)}
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label>Gender</label>
+                                        <select
+                                            value={ag.targeting?.genders?.length === 1 ? (ag.targeting.genders[0] === 1 ? 'male' : 'female') : 'all'}
+                                            onChange={(e) => handleTargetingChange(agIndex, 'genders', e.target.value)}
+                                        >
+                                            <option value="all">All</option>
+                                            <option value="male">Male</option>
+                                            <option value="female">Female</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            )}
+
                             {ag.creatives.map((creative, cIndex) => (
                                 <div key={cIndex} className="creative-block">
                                     <h3>Text Creative</h3>
@@ -652,6 +742,45 @@ const CampaignForm = () => {
                                         )}
                                         <button type="button" onClick={() => addTextField(agIndex, cIndex, 'descriptions')} className="btn-text-only" style={{ display: 'none' }}>+ Add Description</button>
                                     </div>
+
+                                    <div className="text-field-group creative-destination-url">
+                                        <label>
+                                            Destination URL
+                                            {formData.platform === 'meta' && <span className="required"> *</span>}
+                                            {formData.platform === 'google' && <span className="label-hint"> (optional for Google Ads)</span>}
+                                        </label>
+                                        <input
+                                            type="url"
+                                            value={(creative.final_urls && creative.final_urls[0]) || ''}
+                                            onChange={(e) => handleCreativeChange(agIndex, cIndex, 'final_urls', e.target.value, 0)}
+                                            placeholder="https://example.com/landing"
+                                            className={validationErrors.ad_groups?.[agIndex]?.creatives?.[cIndex]?.final_urls ? 'input-error' : ''}
+                                        />
+                                        {validationErrors.ad_groups?.[agIndex]?.creatives?.[cIndex]?.final_urls && (
+                                            <span className="field-error">{validationErrors.ad_groups[agIndex].creatives[cIndex].final_urls}</span>
+                                        )}
+                                        <small>{formData.platform === 'meta' ? 'Required for Meta ads.' : 'Optional for Google Ads.'}</small>
+                                    </div>
+
+                                    {formData.platform === 'meta' && (
+                                        <div className="form-group">
+                                            <label>Call to action</label>
+                                            <select
+                                                value={creative.call_to_action_type || 'LEARN_MORE'}
+                                                onChange={(e) => handleCreativeChange(agIndex, cIndex, 'call_to_action_type', e.target.value)}
+                                            >
+                                                <option value="LEARN_MORE">Learn More</option>
+                                                <option value="SHOP_NOW">Shop Now</option>
+                                                <option value="SIGN_UP">Sign Up</option>
+                                                <option value="CONTACT_US">Contact Us</option>
+                                                <option value="GET_QUOTE">Get Quote</option>
+                                                <option value="DOWNLOAD">Download</option>
+                                                <option value="BOOK_NOW">Book Now</option>
+                                                <option value="GET_OFFER">Get Offer</option>
+                                                <option value="VISIT_WEBSITE">Visit Website</option>
+                                            </select>
+                                        </div>
+                                    )}
                                 </div>
                             ))}
                         </div>

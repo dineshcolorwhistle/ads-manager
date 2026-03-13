@@ -39,6 +39,13 @@ const validateUnified = (data) => {
 const validatePlatformSpecific = async (platform, campaignId, clientId) => {
     const errors = [];
 
+    if (platform === 'meta') {
+        const campaign = await campaignRepository.findById(campaignId, clientId);
+        if (campaign && (!campaign.facebook_page_id || String(campaign.facebook_page_id).trim() === '')) {
+            errors.push('Facebook Page ID is required for Meta campaigns');
+        }
+    }
+
     // Fetch full structure for validation
     const adGroups = await adGroupRepository.findAllByCampaign(campaignId, clientId);
 
@@ -63,13 +70,19 @@ const validatePlatformSpecific = async (platform, campaignId, clientId) => {
             if (!creative.descriptions || creative.descriptions.length === 0) {
                 errors.push(`Creative "${creative.name}" in "${ag.name}" requires at least one description`);
             }
+            if (platform === 'meta') {
+                const urls = creative.final_urls && Array.isArray(creative.final_urls)
+                    ? creative.final_urls.filter(u => u && String(u).trim() !== '')
+                    : [];
+                if (urls.length === 0) {
+                    errors.push(`Creative "${creative.name}" in "${ag.name}" requires at least one destination URL for Meta`);
+                }
+            }
         }
     }
 
     if (platform === 'google') {
         // Future: Add Google specific character count limits here
-    } else if (platform === 'meta') {
-        // Future: Add Meta specific asset requirements here
     }
 
     return errors;

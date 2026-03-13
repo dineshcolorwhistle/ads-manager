@@ -39,7 +39,7 @@ jobs:
             npm --prefix server install
 
             pm2 describe  ad-campaign >/dev/null 2>&1 && \
-            pm2 reload ecosystem.config.js --only  ads-campaign --env staging --update-env || \
-            pm2 start ecosystem.config.js --only  ads-campaign --env staging
+            pm2 reload ecosystem.config.js --only  ad-campaign --env staging --update-env || \
+            pm2 start ecosystem.config.js --only  ad-campaign --env staging
 
             pm2 save

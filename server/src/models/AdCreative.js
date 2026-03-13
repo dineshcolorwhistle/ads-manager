@@ -38,6 +38,19 @@ const adCreativeSchema = new mongoose.Schema({
         asset_id: String // For future platform sync
     }],
 
+    // Meta/Google: destination URL(s) for link ads (required for Meta link_data.link)
+    final_urls: [{
+        type: String,
+        trim: true
+    }],
+
+    // Meta: call-to-action button type (e.g. LEARN_MORE, SHOP_NOW, SIGN_UP). Optional; Meta defaults to LEARN_MORE.
+    call_to_action_type: {
+        type: String,
+        trim: true,
+        default: null
+    },
+
     // Metadata for platform-specific rendering
     platform_data: {
         type: Map,

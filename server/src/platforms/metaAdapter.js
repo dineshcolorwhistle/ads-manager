@@ -44,17 +44,22 @@ class MetaAdapter extends BaseAdapter {
         logger.info('META_ADAPTER', `Creating campaign: ${data.name}`);
 
         try {
-            // Since we need to support concurrent users, initialize API instance dynamically
+            const pageId = data.facebook_page_id && String(data.facebook_page_id).trim();
+            if (!pageId) {
+                return {
+                    success: false,
+                    error: 'Meta Ads Error: Facebook Page ID is required. Set it in campaign details before publishing.'
+                };
+            }
+
             const api = bizSdk.FacebookAdsApi.init(credentials.access_token);
             api.setDebug(false);
 
-            // Ad Account ID format for Meta is usually act_<ID>
             const accountId = credentials.platform_account_id.startsWith('act_')
                 ? credentials.platform_account_id
                 : `act_${credentials.platform_account_id}`;
             const account = new bizSdk.AdAccount(accountId, api);
 
-            // 1. Create Campaign
             const campaignData = {
                 name: data.name,
                 objective: data.objective,
@@ -68,16 +73,27 @@ class MetaAdapter extends BaseAdapter {
             const campaignId = metaCampaign.id;
 
             for (const ag of data.ad_groups) {
-                // 2. Create Ad Set
                 let optGoal = 'REACH';
                 let promotedObject = null;
                 if (data.objective === 'OUTCOME_TRAFFIC') {
                     optGoal = 'LINK_CLICKS';
                 } else if (data.objective === 'OUTCOME_LEADS') {
                     optGoal = 'LEAD_GENERATION';
-                    promotedObject = { page_id: data.facebook_page_id || '944598498748166' };
+                    promotedObject = { page_id: pageId };
                 } else if (data.objective === 'OUTCOME_SALES') {
                     optGoal = 'OFFSITE_CONVERSIONS';
+                }
+
+                const countries = (ag.targeting && ag.targeting.countries && ag.targeting.countries.length > 0)
+                    ? ag.targeting.countries.map(c => (c && String(c).toUpperCase())).filter(Boolean)
+                    : ['US'];
+                const targeting = {
+                    geo_locations: { countries }
+                };
+                if (ag.targeting) {
+                    if (ag.targeting.age_min != null && ag.targeting.age_min >= 13) targeting.age_min = ag.targeting.age_min;
+                    if (ag.targeting.age_max != null && ag.targeting.age_max <= 65) targeting.age_max = ag.targeting.age_max;
+                    if (ag.targeting.genders && ag.targeting.genders.length > 0) targeting.genders = ag.targeting.genders;
                 }
 
                 const adSetData = {
@@ -86,9 +102,7 @@ class MetaAdapter extends BaseAdapter {
                     status: 'PAUSED',
                     billing_event: 'IMPRESSIONS',
                     optimization_goal: optGoal,
-                    targeting: {
-                        geo_locations: { countries: ['US'] }
-                    }
+                    targeting
                 };
 
                 if (promotedObject) {
@@ -117,35 +131,41 @@ class MetaAdapter extends BaseAdapter {
 
                 const metaAdSet = await account.createAdSet([], adSetData);
 
-                // 3. Create Creatives and Ads
                 if (ag.creatives && ag.creatives.length > 0) {
-
-                    // Fetch an actual Facebook Page ID instead of a dummy one
-                    // Meta requires a Page ID for ad creatives
-                    let pageId = data.facebook_page_id || '944598498748166'; // Fallback Page ID from Meta API
-
-                    if (!data.facebook_page_id) {
-                        try {
-                            const pages = await account.getPromotePages(['id']);
-                            if (pages && pages.length > 0) {
-                                pageId = pages[0].id;
-                            }
-                        } catch (err) {
-                            logger.warn('META_ADAPTER', 'Failed to fetch promote pages, using fallback', err);
-                        }
-                    }
-
                     for (const creative of ag.creatives) {
-                        // Create AdCreative
+                        const finalUrls = creative.final_urls && Array.isArray(creative.final_urls)
+                            ? creative.final_urls.filter(u => u && String(u).trim() !== '')
+                            : [];
+                        const linkUrl = finalUrls.length > 0 ? finalUrls[0].trim() : null;
+                        if (!linkUrl) {
+                            logger.warn('META_ADAPTER', `Skipping creative "${creative.name}" - no destination URL (validation should have caught this)`);
+                            continue;
+                        }
+
+                        const message = creative.descriptions && creative.descriptions.length > 0
+                            ? (creative.descriptions[0].text || creative.descriptions[0])
+                            : 'Default Description';
+                        const headline = creative.headlines && creative.headlines.length > 0
+                            ? (creative.headlines[0].text || creative.headlines[0])
+                            : 'Default Headline';
+
+                        const linkData = {
+                            link: linkUrl,
+                            message,
+                            name: headline
+                        };
+                        if (creative.call_to_action_type && String(creative.call_to_action_type).trim()) {
+                            linkData.call_to_action = {
+                                type: creative.call_to_action_type.trim(),
+                                value: { link: linkUrl }
+                            };
+                        }
+
                         const creativeData = {
                             name: creative.name,
                             object_story_spec: {
                                 page_id: pageId,
-                                link_data: {
-                                    link: creative.final_urls && creative.final_urls.length > 0 ? creative.final_urls[0] : 'https://example.com',
-                                    message: creative.descriptions && creative.descriptions.length > 0 ? (creative.descriptions[0].text || creative.descriptions[0]) : 'Default Description',
-                                    name: creative.headlines && creative.headlines.length > 0 ? (creative.headlines[0].text || creative.headlines[0]) : 'Default Headline'
-                                }
+                                link_data: linkData
                             }
                         };
 

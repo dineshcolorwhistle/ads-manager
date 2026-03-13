@@ -28,11 +28,12 @@ const upsertCredential = async (credentialData) => {
 const findCredentialByClientAndPlatform = async (clientId, platform, platformAccountId) => {
     try {
         const query = { client_id: clientId, platform };
-        if (platformAccountId) {
+        // Meta: one access token can access all ad accounts; find by client+platform only.
+        // Campaign's platform_account_id is used as the target account in the API call.
+        if (platformAccountId && platform !== 'meta') {
             query.platform_account_id = platformAccountId;
         }
 
-        // Return only the most recent one for now, or use platform_account_id if provided
         return await OAuthCredential.findOne(query)
             .sort({ updated_at: -1 });
     } catch (error) {

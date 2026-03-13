@@ -1,7 +1,7 @@
 module.exports = {
     apps: [
         {
-            name: "ads-campaign",
+            name: "ad-campaign",
             script: "server/src/server.js",
             instances: 1,
             exec_mode: "fork",
