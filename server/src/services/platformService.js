@@ -1,6 +1,7 @@
 const googleAdsService = require('./googleAdsService');
 const metaAdsService = require('./metaAdsService');
 const credentialRepository = require('../repositories/credentialRepository');
+const campaignRepository = require('../repositories/campaignRepository');
 const platformAccountRepository = require('../repositories/platformAccountRepository');
 const userApiCredentialRepository = require('../repositories/userApiCredentialRepository');
 const logger = require('../utils/logger');
@@ -129,17 +130,20 @@ const handleCallback = async (clientId, platform, code) => {
  */
 const disconnect = async (clientId, platform) => {
     try {
-        // 1. Delete discovered accounts for the platform
+        // 1. Pause all campaigns that depend on this platform for this client
+        await campaignRepository.pauseByClientAndPlatform(clientId, platform);
+
+        // 2. Delete discovered accounts for the platform
         await platformAccountRepository.deleteAccountsByClientAndPlatform(clientId, platform);
 
-        // 2. Delete all credentials for the platform
+        // 3. Delete all credentials for the platform
         const result = await credentialRepository.deleteCredentialsByClientAndPlatform(clientId, platform);
 
         if (!result || result.deletedCount === 0) {
             return { message: 'No connection found' };
         }
 
-        logger.success('PLATFORM_SERVICE', `Disconnected ${platform} for client ${clientId}`);
+        logger.success('PLATFORM_SERVICE', `Disconnected ${platform} for client ${clientId} and paused related campaigns.`);
 
         return { success: true };
     } catch (error) {

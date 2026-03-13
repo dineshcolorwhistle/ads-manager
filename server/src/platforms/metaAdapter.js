@@ -234,6 +234,23 @@ class MetaAdapter extends BaseAdapter {
             return { success: false, error: error.message };
         }
     }
+
+    /**
+     * Pause/stop a campaign on Meta (set status to PAUSED)
+     */
+    async pauseCampaign(credentials, externalId) {
+        logger.info('META_ADAPTER', `Pausing campaign ${externalId} on platform...`);
+        try {
+            const api = bizSdk.FacebookAdsApi.init(credentials.access_token);
+            const campaign = new bizSdk.Campaign(externalId, api);
+            await campaign.update([], { status: 'PAUSED' });
+
+            return { success: true, platformId: externalId };
+        } catch (error) {
+            logger.error('META_ADAPTER', 'Failed to pause Meta campaign', error);
+            return { success: false, error: error.message };
+        }
+    }
 }
 
 module.exports = new MetaAdapter();

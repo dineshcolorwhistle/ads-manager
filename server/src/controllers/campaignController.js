@@ -127,6 +127,40 @@ const update = async (req, res) => {
 };
 
 /**
+ * Stop/cancel a published campaign
+ */
+const stop = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { client_id: clientId, role } = req.user;
+
+        if (role !== 'ADMIN' && role !== 'CLIENT') {
+            return res.status(403).json({
+                success: false,
+                error: { code: 'FORBIDDEN', message: 'You do not have permission to stop campaigns' },
+                timestamp: new Date().toISOString()
+            });
+        }
+
+        const result = await publishService.stopCampaign(id, clientId);
+
+        res.status(200).json({
+            success: true,
+            data: result,
+            message: 'Campaign stop requested',
+            timestamp: new Date().toISOString()
+        });
+    } catch (error) {
+        logger.error('CAMPAIGN_CONTROLLER', 'Failed to stop campaign', error);
+        res.status(400).json({
+            success: false,
+            error: { code: 'STOP_FAILED', message: error.message },
+            timestamp: new Date().toISOString()
+        });
+    }
+};
+
+/**
  * Trigger campaign publishing to platform
  */
 const publish = async (req, res) => {
@@ -216,6 +250,7 @@ module.exports = {
     getFull,
     update,
     publish,
+    stop,
     saveFull,
     remove
 };

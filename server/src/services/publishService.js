@@ -8,14 +8,9 @@ const campaignService = require('./campaignService'); // For validation logic
 
 /**
  * Publish Service
- * Handles the orchestration of campaign publishing
+ * Handles the orchestration of campaign publishing and stopping/cancelling
  */
 
-/**
- * Trigger campaign publishing
- * @param {string} campaignId 
- * @param {string} clientId 
- */
 const publishCampaign = async (campaignId, clientId) => {
     // 1. Fetch campaign and verify ownership/state
     const campaign = await campaignService.getCampaignFull(campaignId, clientId);
@@ -53,6 +48,70 @@ const publishCampaign = async (campaignId, clientId) => {
     });
 
     return { success: true, message: 'Publishing started in background' };
+};
+
+/**
+ * Stop an already-published campaign on the platform and mark it as PAUSED locally.
+ * @param {string} campaignId 
+ * @param {string} clientId 
+ */
+const stopCampaign = async (campaignId, clientId) => {
+    const campaign = await campaignRepository.findById(campaignId, clientId);
+
+    if (!campaign) {
+        throw new Error('Campaign not found');
+    }
+
+    if (!campaign.external_id) {
+        throw new Error('Campaign has not been published to a platform yet.');
+    }
+
+    // Only allow stopping ACTIVE or PUBLISHING campaigns
+    if (campaign.status !== 'ACTIVE' && campaign.status !== 'PUBLISHING') {
+        throw new Error(`Only ACTIVE or PUBLISHING campaigns can be stopped. Current status: ${campaign.status}`);
+    }
+
+    const adapter = campaign.platform === 'google' ? googleAdapter : metaAdapter;
+
+    const credential = await credentialRepository.findCredentialByClientAndPlatform(
+        campaign.client_id,
+        campaign.platform,
+        campaign.platform_account_id
+    );
+
+    if (!credential) {
+        throw new Error(`Platform connection for ${campaign.platform} account ${campaign.platform_account_id} not found.`);
+    }
+
+    const credentials = {
+        access_token: credential.access_token,
+        refresh_token: credential.refresh_token,
+        client_id: campaign.platform === 'google'
+            ? (process.env.GOOGLE_CLIENT_ID)
+            : (process.env.META_APP_ID),
+        client_secret: campaign.platform === 'google'
+            ? (process.env.GOOGLE_CLIENT_SECRET)
+            : (process.env.META_APP_SECRET),
+        developer_token: process.env.GOOGLE_DEVELOPER_TOKEN,
+        platform_account_id: campaign.platform_account_id
+    };
+
+    const platformResult = await adapter.pauseCampaign(credentials, campaign.external_id);
+    if (!platformResult.success) {
+        throw new Error(platformResult.error || 'Failed to stop campaign on platform.');
+    }
+
+    await campaignRepository.update(campaignId, campaign.client_id, {
+        status: 'PAUSED',
+        $push: {
+            publish_logs: {
+                status: 'PAUSED',
+                message: 'Campaign paused/stopped on platform'
+            }
+        }
+    });
+
+    return { success: true, message: 'Campaign stopped successfully.' };
 };
 
 /**
@@ -142,5 +201,6 @@ const processPublish = async (campaignId, clientId) => {
 };
 
 module.exports = {
-    publishCampaign
+    publishCampaign,
+    stopCampaign
 };

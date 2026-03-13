@@ -27,6 +27,9 @@ router.post('/full', auth, requireRole('ADMIN', 'CLIENT'), campaignController.sa
 // Publish campaign (ADMIN and CLIENT)
 router.post('/:id/publish', auth, requireRole('ADMIN', 'CLIENT'), campaignController.publish);
 
+// Stop/cancel a published campaign (ADMIN and CLIENT)
+router.post('/:id/stop', auth, requireRole('ADMIN', 'CLIENT'), campaignController.stop);
+
 // Delete campaign (ADMIN only)
 router.delete('/:id', auth, requireRole('ADMIN'), campaignController.remove);
 

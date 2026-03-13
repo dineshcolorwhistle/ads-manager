@@ -264,6 +264,37 @@ class GoogleAdapter extends BaseAdapter {
             return { success: false, error: error.message };
         }
     }
+
+    /**
+     * Pause/stop a campaign on Google Ads (set status to PAUSED)
+     */
+    async pauseCampaign(credentials, externalId) {
+        logger.info('GOOGLE_ADAPTER', `Pausing campaign ${externalId} on platform...`);
+        try {
+            const client = new GoogleAdsApi({
+                client_id: credentials.client_id,
+                client_secret: credentials.client_secret,
+                developer_token: credentials.developer_token
+            });
+
+            const customer = client.Customer({
+                customer_id: credentials.platform_account_id,
+                refresh_token: credentials.refresh_token
+            });
+
+            await customer.campaigns.update([
+                {
+                    resource_name: `customers/${credentials.platform_account_id}/campaigns/${externalId}`,
+                    status: 3 // PAUSED = 3
+                }
+            ]);
+
+            return { success: true, platformId: externalId };
+        } catch (error) {
+            logger.error('GOOGLE_ADAPTER', 'Failed to pause Google campaign', error);
+            return { success: false, error: error.message };
+        }
+    }
 }
 
 module.exports = new GoogleAdapter();

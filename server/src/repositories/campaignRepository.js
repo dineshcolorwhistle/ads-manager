@@ -59,11 +59,29 @@ const countByClient = async (clientId, filters = {}) => {
     return await Campaign.countDocuments(query);
 };
 
+/**
+ * Pause all campaigns for a client/platform combination.
+ * Used when a platform connection is disconnected.
+ */
+const pauseByClientAndPlatform = async (clientId, platform) => {
+    const query = { client_id: clientId, platform };
+    // Only pause campaigns that are currently live or ready to go live.
+    query.status = { $in: ['READY', 'PUBLISHING', 'ACTIVE'] };
+
+    return await Campaign.updateMany(
+        query,
+        {
+            $set: { status: 'PAUSED' }
+        }
+    );
+};
+
 module.exports = {
     create,
     findById,
     findAllByClient,
     update,
     deleteCampaign,
-    countByClient
+    countByClient,
+    pauseByClientAndPlatform
 };

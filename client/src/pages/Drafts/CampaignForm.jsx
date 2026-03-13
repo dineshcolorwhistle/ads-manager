@@ -44,6 +44,16 @@ const CampaignForm = () => {
     const [success, setSuccess] = useState(null);
     const [validationErrors, setValidationErrors] = useState({});
 
+    // Auto-clear transient messages
+    useEffect(() => {
+        if (!error && !success) return;
+        const timer = setTimeout(() => {
+            setError(null);
+            setSuccess(null);
+        }, 5000);
+        return () => clearTimeout(timer);
+    }, [error, success]);
+
     // Fetch connected platforms on mount
     useEffect(() => {
         const fetchConnectedPlatforms = async () => {
@@ -105,6 +115,13 @@ const CampaignForm = () => {
                     // Stop polling once status is no longer PUBLISHING
                     if (data.status !== 'PUBLISHING') {
                         clearInterval(pollInterval);
+
+                        // When publishing completes successfully, show a short success
+                        // message and redirect back to drafts.
+                        if (data.status === 'ACTIVE') {
+                            setSuccess('Campaign published successfully. Redirecting to drafts...');
+                            setTimeout(() => navigate('/drafts'), 2000);
+                        }
                     }
                 } catch (err) {
                     // Don't show error during background polling to avoid confusing UI
@@ -411,6 +428,23 @@ const CampaignForm = () => {
             loadDraft();
         } catch (err) {
             setError(err.message || 'Failed to trigger publishing.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleStop = async () => {
+        if (!window.confirm('Are you sure you want to stop this campaign on the advertising platform?')) {
+            return;
+        }
+        try {
+            setLoading(true);
+            setError(null);
+            await campaignService.stop(id);
+            setSuccess('Campaign stop requested. It may take a moment to reflect on the platform.');
+            await loadDraft();
+        } catch (err) {
+            setError(err.message || 'Failed to stop campaign.');
         } finally {
             setLoading(false);
         }
@@ -792,6 +826,16 @@ const CampaignForm = () => {
                         Cancel
                     </button>
                     <div className="form-footer-actions">
+                        {formData.status === 'ACTIVE' && (authService.getCurrentUser()?.role === 'ADMIN' || authService.getCurrentUser()?.role === 'CLIENT') && (
+                            <button
+                                type="button"
+                                onClick={handleStop}
+                                disabled={loading}
+                                className="btn-save-draft"
+                            >
+                                {loading ? 'Stopping...' : 'Stop Campaign'}
+                            </button>
+                        )}
                         {formData.status === 'READY' && (authService.getCurrentUser()?.role === 'ADMIN' || authService.getCurrentUser()?.role === 'CLIENT') && (
                             <button type="button" onClick={handlePublish} disabled={loading} className="btn-primary">
                                 {loading ? 'Starting...' : 'Publish to Platform'}

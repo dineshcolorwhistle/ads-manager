@@ -102,6 +102,23 @@ const campaignService = {
         return result;
     },
 
+    /**
+     * Stop/cancel a published campaign
+     */
+    stop: async (id) => {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${API_URL}/campaigns/${id}/stop`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        const result = await response.json();
+        if (!result.success) throw new Error(result.error?.message || 'Failed to stop campaign');
+        return result;
+    },
+
     delete: async (id) => {
         const token = localStorage.getItem('token');
         const response = await fetch(`${API_URL}/campaigns/${id}`, {
