@@ -74,12 +74,13 @@ class MetaAdapter extends BaseAdapter {
 
             for (const ag of data.ad_groups) {
                 let optGoal = 'REACH';
-                let promotedObject = null;
+                // Always promote the Facebook Page so Meta has
+                // a representing Page for the ad, regardless of objective.
+                let promotedObject = { page_id: pageId };
                 if (data.objective === 'OUTCOME_TRAFFIC') {
                     optGoal = 'LINK_CLICKS';
                 } else if (data.objective === 'OUTCOME_LEADS') {
                     optGoal = 'LEAD_GENERATION';
-                    promotedObject = { page_id: pageId };
                 } else if (data.objective === 'OUTCOME_SALES') {
                     optGoal = 'OFFSITE_CONVERSIONS';
                 }
