@@ -102,6 +102,11 @@ class MetaAdapter extends BaseAdapter {
                     status: 'PAUSED',
                     billing_event: 'IMPRESSIONS',
                     optimization_goal: optGoal,
+                    // Use Meta's lowest cost strategy without a bid cap so that
+                    // we are not required to pass bid_amount or bid_constraints.
+                    // This avoids "Bid Amount Or Bid Constraints Required" errors
+                    // when no explicit bid settings are configured in the UI.
+                    bid_strategy: 'LOWEST_COST_WITHOUT_CAP',
                     targeting
                 };
 
