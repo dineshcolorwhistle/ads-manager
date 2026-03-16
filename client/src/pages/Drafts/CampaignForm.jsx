@@ -1,14 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import campaignService from '../../services/campaignService';
 import platformService from '../../services/platformService';
 import authService from '../../services/authService';
+import clientService from '../../services/clientService';
 import './CampaignForm.css';
 
 const CampaignForm = () => {
     const { id } = useParams();
+    const [searchParams] = useSearchParams();
     const navigate = useNavigate();
     const isEdit = !!id;
+    const isAdmin = authService.getCurrentUser()?.role === 'ADMIN';
 
     const defaultTargeting = () => ({ countries: ['US'], age_min: 18, age_max: 65, genders: [] });
     const defaultCreative = () => ({
@@ -28,6 +31,7 @@ const CampaignForm = () => {
         status: 'DRAFT',
         platform_account_id: '',
         facebook_page_id: '',
+        client_id: '', // used by admin when creating campaign for a client
         ad_groups: [
             {
                 name: 'Default Ad Group',
@@ -38,6 +42,8 @@ const CampaignForm = () => {
     });
 
     const [loading, setLoading] = useState(false);
+    const [clients, setClients] = useState([]);
+    const [clientsLoading, setClientsLoading] = useState(false);
     const [connectedPlatforms, setConnectedPlatforms] = useState([]);
     const [platformsLoading, setPlatformsLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -54,8 +60,42 @@ const CampaignForm = () => {
         return () => clearTimeout(timer);
     }, [error, success]);
 
-    // Fetch connected platforms on mount
+    // Pre-fill client from URL when admin creates campaign (e.g. from Admin Clients "Create campaign")
     useEffect(() => {
+        if (!isAdmin || isEdit) return;
+        const clientIdFromUrl = searchParams.get('client_id');
+        if (clientIdFromUrl) {
+            setFormData(prev => ({ ...prev, client_id: clientIdFromUrl }));
+        }
+    }, [isAdmin, isEdit, searchParams]);
+
+    // Fetch clients for admin when creating new campaign
+    useEffect(() => {
+        if (!isAdmin || isEdit) return;
+        const fetchClients = async () => {
+            try {
+                setClientsLoading(true);
+                const res = await clientService.getClients();
+                if (res.success && res.data) setClients(res.data);
+            } catch (err) {
+                console.error('Failed to fetch clients', err);
+                setClients([]);
+            } finally {
+                setClientsLoading(false);
+            }
+        };
+        fetchClients();
+    }, [isAdmin, isEdit]);
+
+    // Fetch connected platforms on mount for client users or when editing.
+    // For admin creating a new campaign, platforms are loaded after a client is selected.
+    useEffect(() => {
+        if (isAdmin && !isEdit) {
+            setConnectedPlatforms([]);
+            setPlatformsLoading(false);
+            return;
+        }
+
         const fetchConnectedPlatforms = async () => {
             try {
                 setPlatformsLoading(true);
@@ -78,7 +118,59 @@ const CampaignForm = () => {
             }
         };
         fetchConnectedPlatforms();
-    }, []);
+    }, [isAdmin, isEdit]);
+
+    // When admin is creating a campaign for a client, load that client's connected platforms
+    useEffect(() => {
+        if (!isAdmin || isEdit || !formData.client_id) return;
+
+        const fetchClientPlatforms = async () => {
+            try {
+                setPlatformsLoading(true);
+                const platforms = await platformService.getConnectedPlatforms(formData.client_id);
+                setConnectedPlatforms(platforms || []);
+
+                setFormData(prev => ({
+                    ...prev,
+                    platform: platforms && platforms.length > 0 ? platforms[0].platform : '',
+                    platform_account_id: platforms && platforms.length > 0 ? platforms[0].platform_account_id : '',
+                    facebook_page_id: platforms && platforms.length > 0 && prev.platform === 'meta' ? prev.facebook_page_id : ''
+                }));
+            } catch (err) {
+                console.error('Failed to fetch connected platforms for client', err);
+                setConnectedPlatforms([]);
+                setFormData(prev => ({
+                    ...prev,
+                    platform: '',
+                    platform_account_id: ''
+                }));
+            } finally {
+                setPlatformsLoading(false);
+            }
+        };
+
+        fetchClientPlatforms();
+    }, [isAdmin, isEdit, formData.client_id]);
+
+    // When admin is editing an existing campaign, hydrate platform list for that campaign's client
+    useEffect(() => {
+        if (!isAdmin || !isEdit || !formData.client_id) return;
+
+        const fetchPlatformsForExisting = async () => {
+            try {
+                setPlatformsLoading(true);
+                const platforms = await platformService.getConnectedPlatforms(formData.client_id);
+                setConnectedPlatforms(platforms || []);
+            } catch (err) {
+                console.error('Failed to fetch connected platforms for existing campaign client', err);
+                setConnectedPlatforms([]);
+            } finally {
+                setPlatformsLoading(false);
+            }
+        };
+
+        fetchPlatformsForExisting();
+    }, [isAdmin, isEdit, formData.client_id]);
 
     // Load draft data if editing
     useEffect(() => {
@@ -168,6 +260,10 @@ const CampaignForm = () => {
     // --- Validation ---
     const validateForm = () => {
         const errors = {};
+
+        if (isAdmin && !isEdit && (!formData.client_id || formData.client_id.trim() === '')) {
+            errors.client_id = 'Please select which client this campaign belongs to';
+        }
 
         if (!formData.name || formData.name.trim() === '') {
             errors.name = 'Campaign name is required';
@@ -386,6 +482,10 @@ const CampaignForm = () => {
                 ...formData,
                 status: forceStatus || formData.status
             };
+            // Admin creating for a client: ensure client_id is sent (backend expects it in body)
+            if (isAdmin && !isEdit && formData.client_id) {
+                dataToSave.client_id = formData.client_id;
+            }
 
             await campaignService.saveFull(dataToSave);
             setSuccess('Campaign saved successfully!');
@@ -509,7 +609,9 @@ const CampaignForm = () => {
                     </div>
                 )}
 
-                {noPlatformsConnected && (
+                {/* For admin creating a client campaign, hide the global "No Platforms Connected" banner.
+                    The platform list will update based on the selected client instead. */}
+                {noPlatformsConnected && !(isAdmin && !isEdit) && (
                     <div className="no-platforms-warning">
                         <div className="warning-icon">⚠️</div>
                         <div className="warning-content">
@@ -527,6 +629,37 @@ const CampaignForm = () => {
                         <h2>1. Campaign Details</h2>
                         <p className="form-section-subtitle">Name, platform, objective, budget, and schedule.</p>
                     </div>
+                    {isAdmin && !isEdit && (
+                        <div className="form-group">
+                            <label>Create campaign for client <span className="required">*</span></label>
+                            {clientsLoading ? (
+                                <div className="platform-loading">
+                                    <div className="spinner-small"></div>
+                                    <span>Loading clients…</span>
+                                </div>
+                            ) : (
+                                <>
+                                    <select
+                                        name="client_id"
+                                        value={formData.client_id || ''}
+                                        onChange={handleChange}
+                                        className={validationErrors.client_id ? 'input-error' : ''}
+                                    >
+                                        <option value="">— Select client —</option>
+                                        {clients.map(c => (
+                                            <option key={c._id} value={c._id}>
+                                                {c.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    {validationErrors.client_id && (
+                                        <span className="field-error">{validationErrors.client_id}</span>
+                                    )}
+                                    <small>Choose which client this campaign will belong to.</small>
+                                </>
+                            )}
+                        </div>
+                    )}
                     <div className="form-group">
                         <label>Campaign Name <span className="required">*</span></label>
                         <input

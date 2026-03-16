@@ -36,8 +36,8 @@ const config = {
     port: parseInt(getEnvVar('PORT', '5000'), 10),
     nodeEnv: getEnvVar('NODE_ENV', 'development'),
 
-    // Database Configuration
-    mongoUri: getEnvVar('MONGO_URI', null, true),
+    // Database: use MONGO_URI if set; in development fall back to local MongoDB so app can run without Atlas
+    mongoUri: getEnvVar('MONGO_URI', 'mongodb://127.0.0.1:27017/ads-manager', false),
 
     // Logging
     logLevel: getEnvVar('LOG_LEVEL', 'info'),
@@ -47,8 +47,8 @@ const config = {
  * Validate configuration
  */
 const validateConfig = () => {
-    if (!config.mongoUri) {
-        throw new Error('MONGO_URI is required in environment variables');
+    if (!config.mongoUri || config.mongoUri.trim() === '') {
+        throw new Error('MONGO_URI is required in environment variables (or use default local MongoDB in development)');
     }
 
     if (isNaN(config.port) || config.port < 1 || config.port > 65535) {

@@ -13,21 +13,17 @@ const logger = require('../utils/logger');
  */
 const connectDatabase = async (mongoUri) => {
     try {
-        // Mongoose connection options
-        const options = {
-            // Use new URL parser
-            useNewUrlParser: true,
-            useUnifiedTopology: true,
-        };
-
-        // Connect to MongoDB
-        await mongoose.connect(mongoUri, options);
+        // Connect to MongoDB (driver 4+ uses new URL parser and unified topology by default)
+        await mongoose.connect(mongoUri);
 
         logger.info('DATABASE', 'MongoDB connected successfully');
         logger.success('DATABASE', `Connected to: ${mongoose.connection.name}`);
 
     } catch (error) {
-        logger.error('DATABASE', `MongoDB connection failed: ${error.message}`, error);
+        const hint = error.message && error.message.includes('whitelist')
+            ? ' Fix: Add your current IP to MongoDB Atlas Network Access (IP Access List), or use a local MongoDB by setting MONGO_URI=mongodb://127.0.0.1:27017/ads-manager in .env'
+            : '';
+        logger.error('DATABASE', `MongoDB connection failed: ${error.message}.${hint}`, error);
         throw error;
     }
 };

@@ -9,12 +9,17 @@ const logger = require('../utils/logger');
  */
 
 /**
- * Create a new campaign draft
+ * Create a new campaign draft.
+ * Admin may pass body.client_id to create a campaign for a specific client.
  */
 const create = async (req, res) => {
     try {
-        const { client_id: clientId, user_id: userId } = req.user;
-        const result = await campaignService.createCampaign(clientId, userId, req.body);
+        const clientId = await campaignService.resolveCampaignClientId(
+            req.user.role,
+            req.user.client_id,
+            req.body.client_id
+        );
+        const result = await campaignService.createCampaign(clientId, req.user.user_id, req.body);
 
         res.status(201).json({
             success: true,
@@ -33,14 +38,14 @@ const create = async (req, res) => {
 };
 
 /**
- * List all campaigns for the authenticated client
+ * List campaigns. CLIENT sees only their client; ADMIN sees all, or filter by ?client_id= when provided.
  */
 const list = async (req, res) => {
     try {
-        const { client_id: clientId, role } = req.user;
+        const { client_id: userClientId, role } = req.user;
 
         // Security check: CLIENT role MUST have a client_id
-        if (role === 'CLIENT' && !clientId) {
+        if (role === 'CLIENT' && !userClientId) {
             logger.warn('CAMPAIGN_CONTROLLER', `Client role missing client_id for user: ${req.user.user_id}`);
             return res.status(403).json({
                 success: false,
@@ -49,8 +54,9 @@ const list = async (req, res) => {
             });
         }
 
-        // Admin with no clientId sees all, otherwise filter by clientId
-        const result = await campaignService.listCampaigns(clientId);
+        // ADMIN may filter by query.client_id to "switch" to a client view
+        const filterClientId = role === 'ADMIN' && req.query.client_id ? req.query.client_id : userClientId;
+        const result = await campaignService.listCampaigns(filterClientId);
 
         res.status(200).json({
             success: true,
@@ -196,12 +202,31 @@ const publish = async (req, res) => {
 };
 
 /**
- * Save full campaign (Draft/Ready) with nested ad groups and creatives
+ * Save full campaign (Draft/Ready) with nested ad groups and creatives.
+ * Admin may pass body.client_id when creating; when updating (body._id set), campaign's client is used.
  */
 const saveFull = async (req, res) => {
     try {
-        const { client_id: clientId, user_id: userId } = req.user;
-        const result = await campaignService.saveFullCampaign(clientId, userId, req.body);
+        let clientId;
+        if (req.body._id) {
+            // Update: use existing campaign's client (admin can edit any campaign)
+            const existing = await campaignService.getCampaignFull(req.body._id, req.user.client_id);
+            if (!existing) {
+                return res.status(404).json({
+                    success: false,
+                    error: { code: 'NOT_FOUND', message: 'Campaign not found' },
+                    timestamp: new Date().toISOString()
+                });
+            }
+            clientId = existing.client_id;
+        } else {
+            clientId = await campaignService.resolveCampaignClientId(
+                req.user.role,
+                req.user.client_id,
+                req.body.client_id
+            );
+        }
+        const result = await campaignService.saveFullCampaign(clientId, req.user.user_id, req.body);
 
         res.status(200).json({
             success: true,

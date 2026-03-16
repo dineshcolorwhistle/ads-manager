@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import './AdminClients.css';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
@@ -117,26 +118,50 @@ const AdminClients = () => {
         const connected = user.connected_platforms || [];
 
         if (connected.length === 0) {
-            return <span className="no-platforms">Not connected</span>;
-        }
-
-        return connected.map(cp => {
-            const meta = PLATFORMS[cp.platform];
-            if (!meta) return null;
-            const isExpired = cp.is_expired;
             return (
-                <span
-                    key={cp.platform}
-                    className={`platform-badge ${isExpired ? 'platform-badge--expired' : 'platform-badge--connected'}`}
-                    style={{ '--badge-color': isExpired ? '#f59e0b' : meta.color }}
-                    title={isExpired
-                        ? `Token expired — last refreshed ${cp.last_refresh_at ? new Date(cp.last_refresh_at).toLocaleDateString() : 'never'}`
-                        : `Connected since ${new Date(cp.connected_since).toLocaleDateString()}`}
-                >
-                    {isExpired ? '⚠️' : '✅'} {meta.label}
+                <span className="platform-pill platform-pill--none" title="No advertising platforms connected">
+                    <span className="platform-pill__dot" aria-hidden />
+                    Not connected
                 </span>
             );
-        });
+        }
+
+        return (
+            <div className="platforms-cell">
+                {connected.map(cp => {
+                    const meta = PLATFORMS[cp.platform];
+                    if (!meta) return null;
+                    const isExpired = cp.is_expired;
+                    const tooltip = isExpired
+                        ? `Token expired — last refreshed ${cp.last_refresh_at ? new Date(cp.last_refresh_at).toLocaleDateString() : 'never'}`
+                        : `Connected since ${new Date(cp.connected_since).toLocaleDateString()}`;
+                    return (
+                        <span
+                            key={cp.platform}
+                            className={`platform-pill ${isExpired ? 'platform-pill--expired' : 'platform-pill--connected'}`}
+                            style={{ '--pill-accent': meta.color }}
+                            title={tooltip}
+                        >
+                            <span className={`platform-pill__dot ${isExpired ? 'platform-pill__dot--warn' : ''}`} aria-hidden />
+                            {meta.label}
+                        </span>
+                    );
+                })}
+            </div>
+        );
+    };
+
+    const getStatusPill = (user) => {
+        const isActive = user.status === 'active';
+        return (
+            <span
+                className={`status-pill status-pill--${isActive ? 'active' : 'inactive'}`}
+                title={isActive ? 'User account is active' : 'User account is inactive'}
+            >
+                <span className="status-pill__indicator" aria-hidden />
+                {isActive ? 'Active' : 'Inactive'}
+            </span>
+        );
     };
 
     return (
@@ -264,20 +289,27 @@ const AdminClients = () => {
                                                 </div>
                                             </td>
                                             <td className="email-cell">{user.email}</td>
-                                            <td>{getPlatformBadges(user)}</td>
+                                            <td className="td-platforms">{getPlatformBadges(user)}</td>
+                                            <td className="td-status">{getStatusPill(user)}</td>
                                             <td>
-                                                <span className={`status-pill ${user.status}`}>
-                                                    {user.status === 'active' ? '● Active' : '○ Inactive'}
-                                                </span>
-                                            </td>
-                                            <td>
-                                                <button
-                                                    className="btn btn-danger-ghost btn-sm"
-                                                    onClick={() => setDeleteModal(user)}
-                                                    title="Delete user"
-                                                >
-                                                    🗑 Delete
-                                                </button>
+                                                <div className="user-actions-cell">
+                                                    {user.role === 'CLIENT' && user.client_id && (
+                                                        <Link
+                                                            to={`/drafts/new?client_id=${user.client_id._id || user.client_id}`}
+                                                            className="btn btn-outline btn-sm"
+                                                            title="Create campaign for this client"
+                                                        >
+                                                            + Campaign
+                                                        </Link>
+                                                    )}
+                                                    <button
+                                                        className="btn btn-danger-ghost btn-sm"
+                                                        onClick={() => setDeleteModal(user)}
+                                                        title="Delete user"
+                                                    >
+                                                        🗑 Delete
+                                                    </button>
+                                                </div>
                                             </td>
                                         </tr>
                                     ))}

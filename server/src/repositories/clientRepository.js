@@ -25,6 +25,15 @@ const createClient = async (clientData) => {
 };
 
 /**
+ * List all clients (id, name) for admin dropdowns
+ * @returns {Promise<Array>} List of { _id, name }
+ */
+const listClients = async () => {
+    const clients = await Client.find({}).select('_id name').sort({ name: 1 }).lean();
+    return clients;
+};
+
+/**
  * Find client by ID
  * @param {string} clientId - Client ID
  * @returns {Promise<Object|null>} Client or null
@@ -106,6 +115,7 @@ module.exports = {
     createClient,
     findClientById,
     findClientByName,
+    listClients,
     updateClient,
     softDeleteClient
 };

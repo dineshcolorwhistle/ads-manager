@@ -27,18 +27,21 @@ function Layout({ children }) {
                             <h1>Ad Campaign Automation</h1>
                         </Link>
                         <nav>
-                            {/* Menu order for authenticated users:
-                                1. Dashboard
-                                2. API Settings
-                                3. Platforms
-                                4. Campaigns (was Drafts)
-                            */}
-                            <Link to="/">Dashboard</Link>
-                            <Link to="/settings/api">API Settings</Link>
-                            <Link to="/platforms">Platforms</Link>
-                            <Link to="/drafts">Campaigns</Link>
-                            {user && user.role === 'ADMIN' && (
-                                <Link to="/admin/clients" className="admin-link">Admin: Clients</Link>
+                            {user && user.role === 'ADMIN' ? (
+                                <>
+                                    {/* Admin Dashboard: 1. Dashboard, 2. Users, 3. Campaigns */}
+                                    <Link to="/">Dashboard</Link>
+                                    <Link to="/admin/clients">Users</Link>
+                                    <Link to="/drafts">Campaigns</Link>
+                                </>
+                            ) : (
+                                <>
+                                    {/* User role: Dashboard, API Settings, Platforms, Campaigns */}
+                                    <Link to="/">Dashboard</Link>
+                                    <Link to="/settings/api">API Settings</Link>
+                                    <Link to="/platforms">Platforms</Link>
+                                    <Link to="/drafts">Campaigns</Link>
+                                </>
                             )}
                         </nav>
                         <div className="user-nav">

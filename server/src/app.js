@@ -89,11 +89,13 @@ const userRoutes = require('./routes/userRoutes');
 const userCredentialRoutes = require('./routes/userCredentialRoutes');
 const platformRoutes = require('./routes/platformRoutes');
 const campaignRoutes = require('./routes/campaignRoutes');
+const clientRoutes = require('./routes/clientRoutes');
 
 // Mount routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users/api-credentials', userCredentialRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/clients', clientRoutes);
 app.use('/api/oauth', platformRoutes);
 app.use('/api/campaigns', campaignRoutes);
 

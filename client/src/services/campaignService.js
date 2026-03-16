@@ -6,11 +6,12 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
  */
 const campaignService = {
     /**
-     * Get all campaign drafts for the client
+     * Get all campaign drafts. Admin may pass clientId to filter by client.
      */
-    getDrafts: async () => {
+    getDrafts: async (clientId = null) => {
         const token = localStorage.getItem('token');
-        const response = await fetch(`${API_URL}/campaigns`, {
+        const url = clientId ? `${API_URL}/campaigns?client_id=${encodeURIComponent(clientId)}` : `${API_URL}/campaigns`;
+        const response = await fetch(url, {
             headers: { Authorization: `Bearer ${token}` }
         });
         const result = await response.json();

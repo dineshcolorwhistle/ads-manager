@@ -24,6 +24,28 @@ body:not(.dark-mode) .drafts-header {
     margin: 0;
 }
 
+.drafts-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.drafts-client-filter {
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--bg-white);
+    font-size: 0.9rem;
+    min-width: 160px;
+}
+
+body:not(.dark-mode) .drafts-client-filter {
+    border-color: var(--color-grey-light);
+    background: var(--color-white);
+    color: #1a1f2e;
+}
+
 body:not(.dark-mode) .drafts-header h1 {
     color: #0e1c81;
 }

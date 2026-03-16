@@ -149,7 +149,22 @@ const PLATFORM_LABELS = { google: 'Google Ads', meta: 'Meta Ads' };
 
 const getConnectedPlatforms = async (req, res) => {
     try {
-        const clientId = req.user.client_id;
+        // For CLIENT users, always use their own client workspace.
+        // For ADMIN, allow an explicit ?client_id= override so that admin
+        // can view platforms connected for a specific client workspace.
+        const clientId = req.user.role === 'ADMIN' && req.query.client_id
+            ? req.query.client_id
+            : req.user.client_id;
+
+        if (!clientId) {
+            return res.status(200).json({
+                success: true,
+                data: [],
+                message: 'No client selected for connected platforms',
+                timestamp: new Date().toISOString()
+            });
+        }
+
         const connected = await credentialRepository.findConnectedPlatformsByClient(clientId);
 
         const data = connected.map(c => ({

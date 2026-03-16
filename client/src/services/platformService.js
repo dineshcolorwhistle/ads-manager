@@ -55,11 +55,17 @@ const platformService = {
 
     /**
      * Get connected platforms (only platforms with active OAuth credentials)
+     * Optionally scoped to a specific client when called by an admin.
+     * @param {string|null} [clientId] - Optional client ID (admin only)
      * @returns {Array} List of { platform, platform_account_id, label }
      */
-    getConnectedPlatforms: async () => {
+    getConnectedPlatforms: async (clientId = null) => {
         const token = localStorage.getItem('token');
-        const response = await fetch(`${API_URL}/oauth/connected`, {
+        const url = clientId
+            ? `${API_URL}/oauth/connected?client_id=${encodeURIComponent(clientId)}`
+            : `${API_URL}/oauth/connected`;
+
+        const response = await fetch(url, {
             headers: {
                 'Authorization': `Bearer ${token}`
             }

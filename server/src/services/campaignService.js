@@ -1,6 +1,7 @@
 const campaignRepository = require('../repositories/campaignRepository');
 const adGroupRepository = require('../repositories/adGroupRepository');
 const adCreativeRepository = require('../repositories/adCreativeRepository');
+const clientRepository = require('../repositories/clientRepository');
 const credentialRepository = require('../repositories/credentialRepository');
 const googleAdapter = require('../platforms/googleAdapter');
 const metaAdapter = require('../platforms/metaAdapter');
@@ -39,15 +40,22 @@ const validateUnified = (data) => {
 const validatePlatformSpecific = async (platform, campaignId, clientId) => {
     const errors = [];
 
+    const campaign = await campaignRepository.findById(campaignId, clientId);
+    if (!campaign) {
+        errors.push('Campaign not found for validation');
+        return errors;
+    }
+
+    const effectiveClientId = clientId || campaign.client_id;
+
     if (platform === 'meta') {
-        const campaign = await campaignRepository.findById(campaignId, clientId);
-        if (campaign && (!campaign.facebook_page_id || String(campaign.facebook_page_id).trim() === '')) {
+        if (!campaign.facebook_page_id || String(campaign.facebook_page_id).trim() === '') {
             errors.push('Facebook Page ID is required for Meta campaigns');
         }
     }
 
     // Fetch full structure for validation
-    const adGroups = await adGroupRepository.findAllByCampaign(campaignId, clientId);
+    const adGroups = await adGroupRepository.findAllByCampaign(campaignId, effectiveClientId);
 
     if (adGroups.length === 0) {
         errors.push('At least one Ad Group is required for READY status');
@@ -57,7 +65,7 @@ const validatePlatformSpecific = async (platform, campaignId, clientId) => {
     for (const ag of adGroups) {
         if (!ag.name) errors.push(`Ad Group ${ag._id} is missing a name`);
 
-        const creatives = await adCreativeRepository.findAllByAdGroup(ag._id, clientId);
+        const creatives = await adCreativeRepository.findAllByAdGroup(ag._id, effectiveClientId);
         if (creatives.length === 0) {
             errors.push(`Ad Group "${ag.name}" requires at least one creative`);
             continue;
@@ -86,6 +94,31 @@ const validatePlatformSpecific = async (platform, campaignId, clientId) => {
     }
 
     return errors;
+};
+
+/**
+ * Resolve and validate client_id for campaign create/save.
+ * - CLIENT: must use their own client_id (from user).
+ * - ADMIN: may pass body.client_id to create campaigns for a client; otherwise uses user's client_id if set.
+ * @returns {Promise<string>} Resolved MongoDB client ObjectId string
+ */
+const resolveCampaignClientId = async (role, userClientId, bodyClientId) => {
+    let clientId = userClientId;
+    if (role === 'ADMIN' && bodyClientId) {
+        clientId = bodyClientId;
+    }
+    if (!clientId) {
+        throw new Error(
+            role === 'ADMIN'
+                ? 'client_id is required. Specify which client this campaign belongs to (e.g. in request body).'
+                : 'Client ID missing'
+        );
+    }
+    const client = await clientRepository.findClientById(clientId);
+    if (!client) {
+        throw new Error('Invalid client_id: client not found');
+    }
+    return clientId;
 };
 
 /**
@@ -127,16 +160,20 @@ const listCampaigns = async (clientId, filters = {}) => {
 
 /**
  * Get campaign with its ad groups and creatives
+ * For ADMIN users, clientId may be null — in that case we resolve the
+ * effective client from the campaign itself so that child records are loaded.
  */
 const getCampaignFull = async (id, clientId) => {
     const campaign = await campaignRepository.findById(id, clientId);
     if (!campaign) return null;
 
-    const adGroups = await adGroupRepository.findAllByCampaign(id, clientId);
+    const effectiveClientId = clientId || campaign.client_id;
+
+    const adGroups = await adGroupRepository.findAllByCampaign(id, effectiveClientId);
 
     // For each ad group, fetch its creatives
     const adGroupsWithCreatives = await Promise.all(adGroups.map(async (ag) => {
-        const creatives = await adCreativeRepository.findAllByAdGroup(ag._id, clientId);
+        const creatives = await adCreativeRepository.findAllByAdGroup(ag._id, effectiveClientId);
         return {
             ...ag.toObject(),
             creatives
@@ -238,9 +275,10 @@ const deleteCampaignFull = async (id, clientId, role) => {
         throw new Error('Only administrators can delete campaigns');
     }
 
-    // 2. Fetch full structure for platform sync
+    // 2. Fetch full structure for platform sync (admin may pass null clientId)
     const campaign = await campaignRepository.findById(id, clientId);
     if (!campaign) throw new Error('Campaign not found');
+    const effectiveClientId = clientId || campaign.client_id;
 
     // 3. Platform synchronization if published
     if ((campaign.status === 'ACTIVE' || campaign.status === 'PUBLISHING') && campaign.external_id) {
@@ -248,7 +286,7 @@ const deleteCampaignFull = async (id, clientId, role) => {
 
         try {
             const credential = await credentialRepository.findCredentialByClientAndPlatform(
-                clientId,
+                effectiveClientId,
                 campaign.platform,
                 campaign.platform_account_id
             );
@@ -276,18 +314,19 @@ const deleteCampaignFull = async (id, clientId, role) => {
     }
 
     // 4. Local Deletion (Cascading)
-    const adGroups = await adGroupRepository.findAllByCampaign(id, clientId);
+    const adGroups = await adGroupRepository.findAllByCampaign(id, effectiveClientId);
     for (const ag of adGroups) {
-        await adCreativeRepository.deleteByAdGroup(ag._id, clientId);
+        await adCreativeRepository.deleteByAdGroup(ag._id, effectiveClientId);
     }
-    await adGroupRepository.deleteByCampaign(id, clientId);
-    await campaignRepository.deleteCampaign(id, clientId);
+    await adGroupRepository.deleteByCampaign(id, effectiveClientId);
+    await campaignRepository.deleteCampaign(id, effectiveClientId);
 
     logger.success('CAMPAIGN_SERVICE', `Campaign ${id} and all children deleted locally.`);
     return true;
 };
 
 module.exports = {
+    resolveCampaignClientId,
     createCampaign,
     getCampaignFull,
     listCampaigns,
