@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import React, { useMemo, useState } from 'react';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import authService from '../services/authService';
 import './Login.css';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
 
 const Login = () => {
     const [email, setEmail] = useState('');
@@ -9,6 +11,16 @@ const Login = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const navigate = useNavigate();
+    const location = useLocation();
+
+    const ssoError = useMemo(() => {
+        const params = new URLSearchParams(location.search);
+        const code = params.get('error');
+        if (!code) return null;
+        if (code === 'SSO_USER_NOT_FOUND') return 'No account exists for this Google email.';
+        if (code === 'ACCOUNT_INACTIVE') return 'Your account is inactive.';
+        return 'Google sign-in failed. Please try again.';
+    }, [location.search]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -22,6 +34,10 @@ const Login = () => {
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleGoogleSignIn = () => {
+        window.location.href = `${API_URL}/auth/google`;
     };
 
     return (
@@ -47,7 +63,20 @@ const Login = () => {
                     </div>
 
                     <form onSubmit={handleSubmit} className="login-form">
-                        {error && <div className="login-error">{error}</div>}
+                        {(error || ssoError) && <div className="login-error">{error || ssoError}</div>}
+
+                        <button
+                            type="button"
+                            className="google-btn"
+                            onClick={handleGoogleSignIn}
+                            disabled={loading}
+                        >
+                            Continue with Google
+                        </button>
+
+                        <div className="login-divider">
+                            <span>or</span>
+                        </div>
 
                         <div className="form-group">
                             <label>Email Address</label>

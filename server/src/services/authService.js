@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
+const { google } = require('googleapis');
 const userRepository = require('../repositories/userRepository');
 const logger = require('../utils/logger');
 const PasswordResetToken = require('../models/PasswordResetToken');
@@ -295,8 +296,122 @@ const verifyToken = (token) => {
 
 module.exports = {
     login,
+    getGoogleAuthUrl,
+    loginWithGoogle,
     requestPasswordReset,
     resetPassword,
     generateToken,
     verifyToken
 };
+
+/**
+ * Build Google OAuth client, validating env config.
+ * @param {string} callbackUrl - Fully-qualified backend callback URL
+ */
+function createGoogleOAuthClient(callbackUrl) {
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+    const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+
+    if (!clientId || !clientSecret) {
+        const error = new Error('Google OAuth is not configured');
+        error.statusCode = 500;
+        error.code = 'GOOGLE_OAUTH_NOT_CONFIGURED';
+        throw error;
+    }
+
+    return new google.auth.OAuth2(clientId, clientSecret, callbackUrl);
+}
+
+/**
+ * Get Google OAuth start URL (redirect URL).
+ * @param {Object} params
+ * @param {string} params.callbackUrl - Fully-qualified backend callback URL
+ */
+function getGoogleAuthUrl({ callbackUrl }) {
+    const oauth2Client = createGoogleOAuthClient(callbackUrl);
+
+    return oauth2Client.generateAuthUrl({
+        access_type: 'online',
+        prompt: 'select_account',
+        scope: ['openid', 'email', 'profile'],
+        include_granted_scopes: true
+    });
+}
+
+/**
+ * Login with Google using OAuth authorization code.
+ * For safety, this only allows sign-in for EXISTING active users (matched by email).
+ * @param {Object} params
+ * @param {string} params.code - Authorization code from Google
+ * @param {string} params.callbackUrl - Fully-qualified backend callback URL
+ */
+async function loginWithGoogle({ code, callbackUrl }) {
+    try {
+        if (!code) {
+            const error = new Error('Missing authorization code');
+            error.statusCode = 400;
+            error.code = 'MISSING_AUTH_CODE';
+            throw error;
+        }
+
+        const oauth2Client = createGoogleOAuthClient(callbackUrl);
+        const { tokens } = await oauth2Client.getToken(String(code));
+
+        if (!tokens?.id_token) {
+            const error = new Error('Google did not return an ID token');
+            error.statusCode = 400;
+            error.code = 'MISSING_ID_TOKEN';
+            throw error;
+        }
+
+        const ticket = await oauth2Client.verifyIdToken({
+            idToken: tokens.id_token,
+            audience: process.env.GOOGLE_CLIENT_ID
+        });
+
+        const payload = ticket.getPayload();
+        const email = payload?.email;
+
+        if (!email) {
+            const error = new Error('Google account email is not available');
+            error.statusCode = 400;
+            error.code = 'GOOGLE_EMAIL_NOT_AVAILABLE';
+            throw error;
+        }
+
+        const user = await userRepository.findUserByEmail(email.toLowerCase());
+
+        if (!user) {
+            const error = new Error('No account exists for this Google email');
+            error.statusCode = 401;
+            error.code = 'SSO_USER_NOT_FOUND';
+            throw error;
+        }
+
+        if (user.status !== 'active') {
+            const error = new Error('Account is inactive');
+            error.statusCode = 401;
+            error.code = 'ACCOUNT_INACTIVE';
+            throw error;
+        }
+
+        const token = generateToken(user);
+
+        logger.success('AUTH_SERVICE', `User logged in via Google SSO: ${email}`);
+
+        return {
+            token,
+            user: {
+                id: user._id,
+                name: user.name,
+                email: user.email,
+                role: user.role,
+                client_id: user.client_id,
+                status: user.status
+            }
+        };
+    } catch (error) {
+        logger.error('AUTH_SERVICE', 'Google SSO login failed', error);
+        throw error;
+    }
+}

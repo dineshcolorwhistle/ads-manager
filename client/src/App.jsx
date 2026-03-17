@@ -7,6 +7,7 @@ import CampaignForm from './pages/Drafts/CampaignForm';
 import Login from './pages/Login';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
+import OAuthCallback from './pages/OAuthCallback';
 import ApiSettings from './pages/Settings/ApiSettings';
 import AdminClients from './pages/Admin/AdminClients';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -23,6 +24,7 @@ function App() {
                 <Route path="/login" element={<Login />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
+                <Route path="/oauth-callback" element={<OAuthCallback />} />
 
                 {/* Protected Routes */}
                 <Route path="/" element={

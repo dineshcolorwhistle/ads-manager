@@ -8,6 +8,55 @@ const logger = require('../utils/logger');
  */
 
 /**
+ * Start Google OAuth sign-in
+ * GET /auth/google
+ */
+const googleAuthStart = async (req, res) => {
+    try {
+        const callbackUrl = `${req.protocol}://${req.get('host')}/api/auth/google/callback`;
+        const authUrl = authService.getGoogleAuthUrl({ callbackUrl });
+        return res.redirect(authUrl);
+    } catch (error) {
+        logger.error('AUTH_CONTROLLER', 'Google auth start failed', error);
+        return res.status(error.statusCode || 500).json({
+            success: false,
+            error: {
+                code: error.code || 'INTERNAL_SERVER_ERROR',
+                message: error.message || 'An internal server error occurred'
+            },
+            timestamp: new Date().toISOString()
+        });
+    }
+};
+
+/**
+ * Google OAuth callback
+ * GET /auth/google/callback
+ */
+const googleAuthCallback = async (req, res) => {
+    try {
+        const { code } = req.query;
+        const callbackUrl = `${req.protocol}://${req.get('host')}/api/auth/google/callback`;
+
+        const { token } = await authService.loginWithGoogle({ code, callbackUrl });
+
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+        const redirectUrl = new URL('/oauth-callback', frontendUrl);
+        redirectUrl.searchParams.set('token', token);
+
+        return res.redirect(redirectUrl.toString());
+    } catch (error) {
+        logger.error('AUTH_CONTROLLER', 'Google auth callback failed', error);
+
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+        const redirectUrl = new URL('/login', frontendUrl);
+        redirectUrl.searchParams.set('error', error.code || 'GOOGLE_AUTH_FAILED');
+
+        return res.redirect(redirectUrl.toString());
+    }
+};
+
+/**
  * Login endpoint
  * POST /auth/login
  * @param {Request} req - Express request
@@ -102,6 +151,8 @@ const resetPassword = async (req, res) => {
 };
 
 module.exports = {
+    googleAuthStart,
+    googleAuthCallback,
     login,
     forgotPassword,
     resetPassword

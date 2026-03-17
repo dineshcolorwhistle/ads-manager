@@ -15,6 +15,18 @@ const router = express.Router();
 router.post('/login', authController.login);
 
 /**
+ * GET /auth/google
+ * Start Google OAuth sign-in (redirect)
+ */
+router.get('/google', authController.googleAuthStart);
+
+/**
+ * GET /auth/google/callback
+ * Google OAuth callback (redirect back to frontend with JWT)
+ */
+router.get('/google/callback', authController.googleAuthCallback);
+
+/**
  * POST /auth/forgot-password
  * Request password reset link
  */
