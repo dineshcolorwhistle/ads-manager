@@ -1,5 +1,7 @@
 const campaignService = require('../services/campaignService');
 const publishService = require('../services/publishService');
+const credentialRepository = require('../repositories/credentialRepository');
+const metaInsightsService = require('../services/metaInsightsService');
 const logger = require('../utils/logger');
 
 /**
@@ -167,6 +169,67 @@ const stop = async (req, res) => {
 };
 
 /**
+ * Get performance insights for a campaign (currently Meta only).
+ */
+const getInsights = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { client_id: clientId } = req.user;
+
+        const campaign = await campaignService.getCampaignFull(id, clientId);
+        if (!campaign) {
+            return res.status(404).json({
+                success: false,
+                error: { code: 'NOT_FOUND', message: 'Campaign not found' },
+                timestamp: new Date().toISOString()
+            });
+        }
+
+        if (!campaign.external_id || campaign.platform !== 'meta') {
+            return res.status(400).json({
+                success: false,
+                error: { code: 'INVALID', message: 'Insights are currently supported only for published Meta campaigns.' },
+                timestamp: new Date().toISOString()
+            });
+        }
+
+        const credential = await credentialRepository.findCredentialByClientAndPlatform(
+            campaign.client_id,
+            'meta',
+            campaign.platform_account_id
+        );
+
+        if (!credential) {
+            return res.status(400).json({
+                success: false,
+                error: { code: 'CREDENTIALS_MISSING', message: 'Meta credentials not found for this campaign.' },
+                timestamp: new Date().toISOString()
+            });
+        }
+
+        const credentials = {
+            access_token: credential.access_token
+        };
+
+        const insights = await metaInsightsService.getCampaignInsights(credentials, campaign.external_id);
+
+        res.status(200).json({
+            success: true,
+            data: insights,
+            message: 'Campaign insights retrieved successfully',
+            timestamp: new Date().toISOString()
+        });
+    } catch (error) {
+        logger.error('CAMPAIGN_CONTROLLER', 'Failed to fetch campaign insights', error);
+        res.status(500).json({
+            success: false,
+            error: { code: 'INSIGHTS_FAILED', message: error.message },
+            timestamp: new Date().toISOString()
+        });
+    }
+};
+
+/**
  * Trigger campaign publishing to platform
  */
 const publish = async (req, res) => {
@@ -269,6 +332,39 @@ const remove = async (req, res) => {
     }
 };
 
+/**
+ * Handle image upload for a campaign creative.
+ * Returns the filename and a URL that the client can use for preview.
+ */
+const uploadImage = async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({
+                success: false,
+                error: { code: 'NO_FILE', message: 'No image file provided' },
+                timestamp: new Date().toISOString()
+            });
+        }
+
+        const { filename, originalname, size } = req.file;
+        const imageUrl = `${req.protocol}://${req.get('host')}/uploads/campaign-images/${filename}`;
+
+        res.status(200).json({
+            success: true,
+            data: { filename, originalname, size, image_url: imageUrl },
+            message: 'Image uploaded successfully',
+            timestamp: new Date().toISOString()
+        });
+    } catch (error) {
+        logger.error('CAMPAIGN_CONTROLLER', 'Failed to upload image', error);
+        res.status(500).json({
+            success: false,
+            error: { code: 'UPLOAD_FAILED', message: error.message },
+            timestamp: new Date().toISOString()
+        });
+    }
+};
+
 module.exports = {
     create,
     list,
@@ -276,6 +372,8 @@ module.exports = {
     update,
     publish,
     stop,
+    getInsights,
     saveFull,
-    remove
+    remove,
+    uploadImage
 };

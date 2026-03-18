@@ -145,6 +145,36 @@ const campaignService = {
         const result = await response.json();
         if (!result.success) throw new Error(result.error?.message || 'Failed to fetch platform accounts');
         return result;
+    },
+
+    /**
+     * Upload an image file for a campaign creative
+     */
+    uploadImage: async (file) => {
+        const token = localStorage.getItem('token');
+        const formData = new FormData();
+        formData.append('image', file);
+        const response = await fetch(`${API_URL}/campaigns/upload-image`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${token}` },
+            body: formData
+        });
+        const result = await response.json();
+        if (!result.success) throw new Error(result.error?.message || 'Failed to upload image');
+        return result;
+    },
+
+    /**
+     * Get performance insights for a campaign
+     */
+    getInsights: async (id) => {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${API_URL}/campaigns/${id}/insights`, {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+        const result = await response.json();
+        if (!result.success) throw new Error(result.error?.message || 'Failed to fetch insights');
+        return result;
     }
 };
 

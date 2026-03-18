@@ -51,6 +51,19 @@ const adCreativeSchema = new mongoose.Schema({
         default: null
     },
 
+    // Image for the ad creative (uploaded via /api/campaigns/upload-image)
+    image_url: {
+        type: String,
+        trim: true,
+        default: null
+    },
+
+    image_filename: {
+        type: String,
+        trim: true,
+        default: null
+    },
+
     // Metadata for platform-specific rendering
     platform_data: {
         type: Map,

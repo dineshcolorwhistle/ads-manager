@@ -1,6 +1,10 @@
+const path = require('path');
+const fs = require('fs');
 const BaseAdapter = require('./baseAdapter');
 const logger = require('../utils/logger');
 const bizSdk = require('facebook-nodejs-business-sdk');
+
+const UPLOADS_DIR = path.join(__dirname, '../../uploads/campaign-images');
 
 /**
  * Meta Ads Adapter
@@ -160,6 +164,33 @@ class MetaAdapter extends BaseAdapter {
                             message,
                             name: headline
                         };
+
+                        // Upload local image file to Meta and use image_hash for
+                        // higher-quality ad images. Falls back to picture URL if
+                        // no local file is available.
+                        if (creative.image_filename) {
+                            const filePath = path.join(UPLOADS_DIR, creative.image_filename);
+                            if (fs.existsSync(filePath)) {
+                                try {
+                                    const adImage = await account.createAdImage([], { filename: filePath });
+                                    const imageData = adImage._data?.images?.[creative.image_filename];
+                                    if (imageData && imageData.hash) {
+                                        linkData.image_hash = imageData.hash;
+                                        logger.info('META_ADAPTER', `Uploaded image to Meta, hash: ${imageData.hash}`);
+                                    } else {
+                                        logger.warn('META_ADAPTER', 'Image uploaded but no hash returned, falling back to URL');
+                                        if (creative.image_url) linkData.picture = String(creative.image_url).trim();
+                                    }
+                                } catch (imgErr) {
+                                    logger.warn('META_ADAPTER', `Failed to upload image to Meta: ${imgErr.message}, falling back to URL`);
+                                    if (creative.image_url) linkData.picture = String(creative.image_url).trim();
+                                }
+                            } else if (creative.image_url && String(creative.image_url).trim()) {
+                                linkData.picture = String(creative.image_url).trim();
+                            }
+                        } else if (creative.image_url && String(creative.image_url).trim()) {
+                            linkData.picture = String(creative.image_url).trim();
+                        }
                         if (creative.call_to_action_type && String(creative.call_to_action_type).trim()) {
                             linkData.call_to_action = {
                                 type: creative.call_to_action_type.trim(),

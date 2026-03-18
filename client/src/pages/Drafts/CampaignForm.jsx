@@ -19,7 +19,9 @@ const CampaignForm = () => {
         headlines: [{ text: '' }],
         descriptions: [{ text: '' }],
         final_urls: [''],
-        call_to_action_type: 'LEARN_MORE'
+        call_to_action_type: 'LEARN_MORE',
+        image_url: '',
+        image_filename: ''
     });
     const [formData, setFormData] = useState({
         name: '',
@@ -49,6 +51,9 @@ const CampaignForm = () => {
     const [error, setError] = useState(null);
     const [success, setSuccess] = useState(null);
     const [validationErrors, setValidationErrors] = useState({});
+    const [insights, setInsights] = useState(null);
+    const [insightsError, setInsightsError] = useState(null);
+    const [uploadingImage, setUploadingImage] = useState({});
 
     // Auto-clear transient messages
     useEffect(() => {
@@ -250,6 +255,8 @@ const CampaignForm = () => {
             }
             normalizeAdGroupsForUI(data);
             setFormData(data);
+            setInsights(null);
+            setInsightsError(null);
         } catch (err) {
             setError('Failed to load draft details.');
         } finally {
@@ -458,6 +465,35 @@ const CampaignForm = () => {
         }
     };
 
+    const handleImageUpload = async (agIndex, cIndex, file) => {
+        if (!file) return;
+        const key = `${agIndex}-${cIndex}`;
+        setUploadingImage(prev => ({ ...prev, [key]: true }));
+        try {
+            const result = await campaignService.uploadImage(file);
+            const { image_url, filename } = result.data;
+            const newAdGroups = [...formData.ad_groups];
+            const creative = { ...newAdGroups[agIndex].creatives[cIndex] };
+            creative.image_url = image_url;
+            creative.image_filename = filename;
+            newAdGroups[agIndex].creatives[cIndex] = creative;
+            setFormData(prev => ({ ...prev, ad_groups: newAdGroups }));
+        } catch (err) {
+            setError(err.message || 'Failed to upload image');
+        } finally {
+            setUploadingImage(prev => ({ ...prev, [key]: false }));
+        }
+    };
+
+    const handleRemoveImage = (agIndex, cIndex) => {
+        const newAdGroups = [...formData.ad_groups];
+        const creative = { ...newAdGroups[agIndex].creatives[cIndex] };
+        creative.image_url = '';
+        creative.image_filename = '';
+        newAdGroups[agIndex].creatives[cIndex] = creative;
+        setFormData(prev => ({ ...prev, ad_groups: newAdGroups }));
+    };
+
     const removeAdGroup = (index) => {
         if (formData.ad_groups.length > 1) {
             const newAdGroups = formData.ad_groups.filter((_, idx) => idx !== index);
@@ -547,6 +583,18 @@ const CampaignForm = () => {
             setError(err.message || 'Failed to stop campaign.');
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleLoadInsights = async () => {
+        if (!id) return;
+        try {
+            setInsightsError(null);
+            const result = await campaignService.getInsights(id);
+            setInsights(result.data || null);
+        } catch (err) {
+            setInsights(null);
+            setInsightsError(err.message || 'Failed to load insights.');
         }
     };
 
@@ -930,6 +978,65 @@ const CampaignForm = () => {
                                     </div>
 
                                     {formData.platform === 'meta' && (
+                                        <div className="text-field-group">
+                                            <label>Ad Image (Meta)</label>
+                                            {creative.image_url ? (
+                                                <div className="image-preview-container">
+                                                    <img src={creative.image_url} alt="Ad creative" className="image-preview" />
+                                                    <div className="image-preview-actions">
+                                                        <span className="image-preview-name">{creative.image_filename || 'External image'}</span>
+                                                        <button type="button" className="btn-remove-image" onClick={() => handleRemoveImage(agIndex, cIndex)}>Remove</button>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <div
+                                                    className={`image-upload-zone ${uploadingImage[`${agIndex}-${cIndex}`] ? 'uploading' : ''}`}
+                                                    onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add('drag-over'); }}
+                                                    onDragLeave={(e) => { e.currentTarget.classList.remove('drag-over'); }}
+                                                    onDrop={(e) => {
+                                                        e.preventDefault();
+                                                        e.currentTarget.classList.remove('drag-over');
+                                                        const file = e.dataTransfer.files?.[0];
+                                                        if (file) handleImageUpload(agIndex, cIndex, file);
+                                                    }}
+                                                    onClick={() => document.getElementById(`img-input-${agIndex}-${cIndex}`)?.click()}
+                                                >
+                                                    <input
+                                                        id={`img-input-${agIndex}-${cIndex}`}
+                                                        type="file"
+                                                        accept="image/jpeg,image/png,image/gif,image/webp"
+                                                        style={{ display: 'none' }}
+                                                        onChange={(e) => {
+                                                            const file = e.target.files?.[0];
+                                                            if (file) handleImageUpload(agIndex, cIndex, file);
+                                                            e.target.value = '';
+                                                        }}
+                                                    />
+                                                    {uploadingImage[`${agIndex}-${cIndex}`] ? (
+                                                        <div className="upload-spinner-row">
+                                                            <div className="spinner-small"></div>
+                                                            <span>Uploading...</span>
+                                                        </div>
+                                                    ) : (
+                                                        <>
+                                                            <div className="upload-icon">
+                                                                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                                                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                                                    <polyline points="17 8 12 3 7 8" />
+                                                                    <line x1="12" y1="3" x2="12" y2="15" />
+                                                                </svg>
+                                                            </div>
+                                                            <span className="upload-label">Click or drag an image here</span>
+                                                            <span className="upload-hint">JPG, PNG, GIF, WebP up to 10 MB</span>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            )}
+                                            <small>Optional: Upload an image to use as the Meta ad creative.</small>
+                                        </div>
+                                    )}
+
+                                    {formData.platform === 'meta' && (
                                         <div className="form-group">
                                             <label>Call to action</label>
                                             <select
@@ -953,6 +1060,59 @@ const CampaignForm = () => {
                         </div>
                     ))}
                 </section>
+
+                {isEdit && formData.platform === 'meta' && formData.external_id && (
+                    <section className="form-section form-section-card">
+                        <div className="form-section-header form-section-header-row">
+                            <div>
+                                <h2>3. Campaign Insights (Meta)</h2>
+                                <p className="form-section-subtitle">Last 7 days of basic performance metrics from Meta.</p>
+                            </div>
+                            <button
+                                type="button"
+                                className="btn-secondary"
+                                onClick={handleLoadInsights}
+                                disabled={loading}
+                            >
+                                Refresh Insights
+                            </button>
+                        </div>
+                        {insightsError && <div className="error-message">{insightsError}</div>}
+                        {Array.isArray(insights) && insights.length > 0 && (
+                            <div className="insights-table-wrapper">
+                                <table className="insights-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Date</th>
+                                            <th>Impressions</th>
+                                            <th>Clicks</th>
+                                            <th>Spend</th>
+                                            <th>CPC</th>
+                                            <th>CTR</th>
+                                            <th>Conversions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {insights.map((row, idx) => (
+                                            <tr key={idx}>
+                                                <td>{row.date_start === row.date_stop ? row.date_start : `${row.date_start} → ${row.date_stop}`}</td>
+                                                <td>{row.impressions}</td>
+                                                <td>{row.clicks}</td>
+                                                <td>{row.spend}</td>
+                                                <td>{row.cpc}</td>
+                                                <td>{row.ctr}</td>
+                                                <td>{row.conversions}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+                        {!insights && !insightsError && (
+                            <p className="form-section-subtitle">Click “Refresh Insights” to load the latest data from Meta.</p>
+                        )}
+                    </section>
+                )}
 
                 <div className="form-footer">
                     <button type="button" onClick={() => navigate('/drafts')} className="btn-cancel">
