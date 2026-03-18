@@ -6,6 +6,25 @@ const bizSdk = require('facebook-nodejs-business-sdk');
 
 const UPLOADS_DIR = path.join(__dirname, '../../uploads/campaign-images');
 
+const getPublicBaseUrl = () => {
+    const raw =
+        process.env.PUBLIC_BASE_URL ||
+        process.env.APP_URL ||
+        process.env.FRONTEND_URL ||
+        process.env.SERVER_PUBLIC_URL ||
+        '';
+    return String(raw || '').trim().replace(/\/+$/, '');
+};
+
+const toAbsoluteUrl = (maybeUrl) => {
+    const url = String(maybeUrl || '').trim();
+    if (!url) return '';
+    if (/^https?:\/\//i.test(url)) return url;
+    const base = getPublicBaseUrl();
+    if (!base) return url; // can't make absolute without a configured base
+    return `${base}${url.startsWith('/') ? '' : '/'}${url}`;
+};
+
 /**
  * Meta Ads Adapter
  * Handles communication with Meta (Facebook) Ads API
@@ -173,23 +192,31 @@ class MetaAdapter extends BaseAdapter {
                             if (fs.existsSync(filePath)) {
                                 try {
                                     const adImage = await account.createAdImage([], { filename: filePath });
-                                    const imageData = adImage._data?.images?.[creative.image_filename];
+                                    const imagesMap = adImage && adImage._data && adImage._data.images ? adImage._data.images : {};
+                                    const imageData =
+                                        (imagesMap && imagesMap[creative.image_filename]) ||
+                                        (imagesMap && Object.values(imagesMap)[0]) ||
+                                        null;
                                     if (imageData && imageData.hash) {
                                         linkData.image_hash = imageData.hash;
                                         logger.info('META_ADAPTER', `Uploaded image to Meta, hash: ${imageData.hash}`);
                                     } else {
                                         logger.warn('META_ADAPTER', 'Image uploaded but no hash returned, falling back to URL');
-                                        if (creative.image_url) linkData.picture = String(creative.image_url).trim();
+                                        const abs = toAbsoluteUrl(creative.image_url);
+                                        if (abs) linkData.picture = abs;
                                     }
                                 } catch (imgErr) {
                                     logger.warn('META_ADAPTER', `Failed to upload image to Meta: ${imgErr.message}, falling back to URL`);
-                                    if (creative.image_url) linkData.picture = String(creative.image_url).trim();
+                                    const abs = toAbsoluteUrl(creative.image_url);
+                                    if (abs) linkData.picture = abs;
                                 }
-                            } else if (creative.image_url && String(creative.image_url).trim()) {
-                                linkData.picture = String(creative.image_url).trim();
+                            } else {
+                                const abs = toAbsoluteUrl(creative.image_url);
+                                if (abs) linkData.picture = abs;
                             }
-                        } else if (creative.image_url && String(creative.image_url).trim()) {
-                            linkData.picture = String(creative.image_url).trim();
+                        } else {
+                            const abs = toAbsoluteUrl(creative.image_url);
+                            if (abs) linkData.picture = abs;
                         }
                         if (creative.call_to_action_type && String(creative.call_to_action_type).trim()) {
                             linkData.call_to_action = {
