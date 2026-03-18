@@ -73,6 +73,24 @@
   color: var(--color-google-blue);
 }
 
+.header nav a.active {
+  opacity: 1;
+  color: var(--color-google-green);
+  font-weight: 600;
+  position: relative;
+}
+
+.header nav a.active::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -4px;
+  height: 2px;
+  background: var(--color-google-green);
+  border-radius: 1px;
+}
+
 .container {
   max-width: 1200px;
   margin: 0 auto;

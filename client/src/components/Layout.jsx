@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Link, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import authService from '../services/authService';
 import './Layout.css';
 
@@ -30,17 +30,17 @@ function Layout({ children }) {
                             {user && user.role === 'ADMIN' ? (
                                 <>
                                     {/* Admin Dashboard: 1. Dashboard, 2. Users, 3. Campaigns */}
-                                    <Link to="/">Dashboard</Link>
-                                    <Link to="/admin/clients">Users</Link>
-                                    <Link to="/drafts">Campaigns</Link>
+                                    <NavLink to="/" end>Dashboard</NavLink>
+                                    <NavLink to="/admin/clients">Users</NavLink>
+                                    <NavLink to="/drafts">Campaigns</NavLink>
                                 </>
                             ) : (
                                 <>
                                     {/* User role: Dashboard, API Settings, Platforms, Campaigns */}
-                                    <Link to="/">Dashboard</Link>
-                                    <Link to="/settings/api">API Settings</Link>
-                                    <Link to="/platforms">Platforms</Link>
-                                    <Link to="/drafts">Campaigns</Link>
+                                    <NavLink to="/" end>Dashboard</NavLink>
+                                    <NavLink to="/settings/api">API Settings</NavLink>
+                                    <NavLink to="/platforms">Platforms</NavLink>
+                                    <NavLink to="/drafts">Campaigns</NavLink>
                                 </>
                             )}
                         </nav>
