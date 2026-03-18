@@ -30,7 +30,7 @@ router.post('/:id/publish', auth, requireRole('ADMIN', 'CLIENT'), campaignContro
 // Stop/cancel a published campaign (ADMIN and CLIENT)
 router.post('/:id/stop', auth, requireRole('ADMIN', 'CLIENT'), campaignController.stop);
 
-// Delete campaign (ADMIN only)
-router.delete('/:id', auth, requireRole('ADMIN'), campaignController.remove);
+// Delete campaign (ADMIN and CLIENT; CLIENT can only delete own client's campaigns)
+router.delete('/:id', auth, requireRole('ADMIN', 'CLIENT'), campaignController.remove);
 
 module.exports = router;

@@ -245,7 +245,7 @@ const saveFull = async (req, res) => {
 };
 
 /**
- * Delete a campaign and its structure (Admin only)
+ * Delete a campaign and its structure (Admin or Client; Client can only delete own client's campaigns)
  */
 const remove = async (req, res) => {
     try {

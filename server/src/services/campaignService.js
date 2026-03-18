@@ -270,9 +270,12 @@ const saveFullCampaign = async (clientId, userId, fullData) => {
  * @param {string} role - User role
  */
 const deleteCampaignFull = async (id, clientId, role) => {
-    // 1. RBAC Check (Admin only as per requirement)
-    if (role !== 'ADMIN') {
-        throw new Error('Only administrators can delete campaigns');
+    // 1. RBAC: ADMIN and CLIENT allowed; CLIENT must have client_id (enforced by auth)
+    if (role !== 'ADMIN' && role !== 'CLIENT') {
+        throw new Error('Only administrators or client users can delete campaigns');
+    }
+    if (role === 'CLIENT' && !clientId) {
+        throw new Error('Client context required to delete campaign');
     }
 
     // 2. Fetch full structure for platform sync (admin may pass null clientId)
@@ -280,40 +283,36 @@ const deleteCampaignFull = async (id, clientId, role) => {
     if (!campaign) throw new Error('Campaign not found');
     const effectiveClientId = clientId || campaign.client_id;
 
-    // 3. Platform synchronization if published
+    // 3. Platform synchronization if published — must succeed before local deletion
     if ((campaign.status === 'ACTIVE' || campaign.status === 'PUBLISHING') && campaign.external_id) {
         logger.info('CAMPAIGN_SERVICE', `Syncing deletion with platform ${campaign.platform} for ${id}`);
 
-        try {
-            const credential = await credentialRepository.findCredentialByClientAndPlatform(
-                effectiveClientId,
-                campaign.platform,
-                campaign.platform_account_id
-            );
+        const credential = await credentialRepository.findCredentialByClientAndPlatform(
+            effectiveClientId,
+            campaign.platform,
+            campaign.platform_account_id
+        );
 
-            if (!credential) {
-                logger.warn('CAMPAIGN_SERVICE', `Could not find credentials to delete campaign on platform, proceeding with local deletion`);
-            } else {
-                const credentials = {
-                    access_token: credential.getDecryptedAccessToken(),
-                    refresh_token: credential.getDecryptedRefreshToken(),
-                    client_id: campaign.platform === 'google' ? process.env.GOOGLE_CLIENT_ID : process.env.META_APP_ID,
-                    client_secret: campaign.platform === 'google' ? process.env.GOOGLE_CLIENT_SECRET : process.env.META_APP_SECRET,
-                    developer_token: process.env.GOOGLE_DEVELOPER_TOKEN, // Required for Google Ads
-                    platform_account_id: campaign.platform_account_id
-                };
-
-                const adapter = campaign.platform === 'google' ? googleAdapter : metaAdapter;
-                await adapter.deleteCampaign(credentials, campaign.external_id);
-                logger.success('CAMPAIGN_SERVICE', `Platform deletion successful for ${campaign.external_id}`);
-            }
-        } catch (error) {
-            // We log but proceed with local deletion as per user request (or we could stop here)
-            logger.error('CAMPAIGN_SERVICE', `Platform deletion failed for ${campaign.external_id}`, error);
+        if (!credential) {
+            logger.error('CAMPAIGN_SERVICE', `No credentials to delete campaign on platform; aborting delete`);
+            throw new Error('Cannot delete published campaign: platform credentials not found. Remove or update credentials and try again.');
         }
+
+        const credentials = {
+            access_token: credential.getDecryptedAccessToken(),
+            refresh_token: credential.getDecryptedRefreshToken(),
+            client_id: campaign.platform === 'google' ? process.env.GOOGLE_CLIENT_ID : process.env.META_APP_ID,
+            client_secret: campaign.platform === 'google' ? process.env.GOOGLE_CLIENT_SECRET : process.env.META_APP_SECRET,
+            developer_token: process.env.GOOGLE_DEVELOPER_TOKEN, // Required for Google Ads
+            platform_account_id: campaign.platform_account_id
+        };
+
+        const adapter = campaign.platform === 'google' ? googleAdapter : metaAdapter;
+        await adapter.deleteCampaign(credentials, campaign.external_id);
+        logger.success('CAMPAIGN_SERVICE', `Platform deletion successful for ${campaign.external_id}`);
     }
 
-    // 4. Local Deletion (Cascading)
+    // 4. Local Deletion (Cascading) — only runs after platform delete succeeds (or campaign was not published)
     const adGroups = await adGroupRepository.findAllByCampaign(id, effectiveClientId);
     for (const ag of adGroups) {
         await adCreativeRepository.deleteByAdGroup(ag._id, effectiveClientId);

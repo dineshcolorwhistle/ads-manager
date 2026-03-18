@@ -593,7 +593,7 @@ const CampaignForm = () => {
                         )}
                     </div>
                 </div>
-                {isEdit && authService.getCurrentUser()?.role === 'ADMIN' && (
+                {isEdit && (authService.getCurrentUser()?.role === 'ADMIN' || authService.getCurrentUser()?.role === 'CLIENT') && (
                     <button type="button" onClick={handleDelete} disabled={loading} className="btn-delete">
                         Delete Campaign
                     </button>
