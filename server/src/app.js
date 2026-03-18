@@ -99,6 +99,7 @@ const userCredentialRoutes = require('./routes/userCredentialRoutes');
 const platformRoutes = require('./routes/platformRoutes');
 const campaignRoutes = require('./routes/campaignRoutes');
 const clientRoutes = require('./routes/clientRoutes');
+const publicCampaignRequestRoutes = require('./routes/publicCampaignRequestRoutes');
 
 // Mount routes
 app.use('/api/auth', authRoutes);
@@ -107,6 +108,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/clients', clientRoutes);
 app.use('/api/oauth', platformRoutes);
 app.use('/api/campaigns', campaignRoutes);
+app.use('/api/public/campaign-requests', publicCampaignRequestRoutes);
 
 // 404 handler (must be after all routes)
 app.use(notFoundHandler);
