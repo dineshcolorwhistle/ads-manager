@@ -14,6 +14,8 @@ const CampaignForm = () => {
     const isAdmin = authService.getCurrentUser()?.role === 'ADMIN';
 
     const defaultTargeting = () => ({ countries: ['US'], age_min: 18, age_max: 65, genders: [] });
+    const MAX_HEADLINES = 5;
+    const MAX_DESCRIPTIONS = 4;
     const defaultCreative = () => ({
         name: 'Text Creative 1',
         headlines: [{ text: '' }],
@@ -301,6 +303,8 @@ const CampaignForm = () => {
                 ag.targeting = defaultTargeting();
             }
             (ag.creatives || []).forEach(c => {
+                if (!Array.isArray(c.headlines) || c.headlines.length === 0) c.headlines = [{ text: '' }];
+                if (!Array.isArray(c.descriptions) || c.descriptions.length === 0) c.descriptions = [{ text: '' }];
                 if (!Array.isArray(c.final_urls) || c.final_urls.length === 0) c.final_urls = [''];
                 if (c.call_to_action_type === undefined || c.call_to_action_type === null) c.call_to_action_type = 'LEARN_MORE';
             });
@@ -566,7 +570,10 @@ const CampaignForm = () => {
     const addTextField = (agIndex, cIndex, field) => {
         const newAdGroups = [...formData.ad_groups];
         const creative = { ...newAdGroups[agIndex].creatives[cIndex] };
-        creative[field] = [...creative[field], { text: '' }];
+        const list = Array.isArray(creative[field]) ? creative[field] : [{ text: '' }];
+        const max = field === 'headlines' ? MAX_HEADLINES : field === 'descriptions' ? MAX_DESCRIPTIONS : Infinity;
+        if (list.length >= max) return;
+        creative[field] = [...list, { text: '' }];
         newAdGroups[agIndex].creatives[cIndex] = creative;
         setFormData(prev => ({ ...prev, ad_groups: newAdGroups }));
     };
@@ -1121,7 +1128,15 @@ const CampaignForm = () => {
                                         {validationErrors.ad_groups?.[agIndex]?.creatives?.[cIndex]?.headlines && (
                                             <span className="field-error">{validationErrors.ad_groups[agIndex].creatives[cIndex].headlines}</span>
                                         )}
-                                        <button type="button" onClick={() => addTextField(agIndex, cIndex, 'headlines')} className="btn-text-only" style={{ display: 'none' }}>+ Add Headline</button>
+                                        <button
+                                            type="button"
+                                            onClick={() => addTextField(agIndex, cIndex, 'headlines')}
+                                            className="btn-text-only"
+                                            disabled={(creative.headlines?.length || 0) >= MAX_HEADLINES}
+                                        >
+                                            + Add Headline
+                                        </button>
+                                        <small>{(creative.headlines?.length || 0)}/{MAX_HEADLINES} headlines</small>
                                     </div>
 
                                     <div className="text-field-group">
@@ -1142,7 +1157,15 @@ const CampaignForm = () => {
                                         {validationErrors.ad_groups?.[agIndex]?.creatives?.[cIndex]?.descriptions && (
                                             <span className="field-error">{validationErrors.ad_groups[agIndex].creatives[cIndex].descriptions}</span>
                                         )}
-                                        <button type="button" onClick={() => addTextField(agIndex, cIndex, 'descriptions')} className="btn-text-only" style={{ display: 'none' }}>+ Add Description</button>
+                                        <button
+                                            type="button"
+                                            onClick={() => addTextField(agIndex, cIndex, 'descriptions')}
+                                            className="btn-text-only"
+                                            disabled={(creative.descriptions?.length || 0) >= MAX_DESCRIPTIONS}
+                                        >
+                                            + Add Description
+                                        </button>
+                                        <small>{(creative.descriptions?.length || 0)}/{MAX_DESCRIPTIONS} descriptions</small>
                                     </div>
 
                                     <div className="text-field-group creative-destination-url">
@@ -1224,7 +1247,7 @@ const CampaignForm = () => {
                                     )}
 
                                     {formData.platform === 'meta' && (
-                                        <div className="form-group">
+                                        <div className="text-field-group">
                                             <label>Call to action</label>
                                             <select
                                                 value={creative.call_to_action_type || 'LEARN_MORE'}

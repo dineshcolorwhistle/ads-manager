@@ -62,6 +62,30 @@ class GoogleAdapter extends BaseAdapter {
                 refresh_token: credentials.refresh_token
             });
 
+            // Pre-flight: block publishing into Manager/MCC accounts.
+            // The Google Ads API does not allow creating campaigns directly in MCCs.
+            try {
+                const rows = await customer.query(`
+                    SELECT
+                      customer.id,
+                      customer.descriptive_name,
+                      customer.manager
+                    FROM customer
+                    LIMIT 1
+                `);
+                const isManager = !!(rows && rows[0] && rows[0].customer && rows[0].customer.manager);
+                if (isManager) {
+                    return {
+                        success: false,
+                        error: 'Google Ads Error: The selected Google Ads account is a Manager (MCC) account. Please select a client (non-manager) ad account to publish campaigns.'
+                    };
+                }
+            } catch (preflightErr) {
+                // If we cannot query customer metadata, continue and let the API surface the exact error.
+                // But include additional context to reduce confusion.
+                logger.warn('GOOGLE_ADAPTER', 'Preflight customer query failed (continuing)', { message: preflightErr.message });
+            }
+
             // 1. Create Campaign Budget
             const amountMicros = data.amount_micros;
             if (!amountMicros || isNaN(amountMicros) || amountMicros <= 0) {
