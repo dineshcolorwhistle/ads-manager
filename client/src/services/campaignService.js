@@ -1,4 +1,5 @@
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
+const SERVER_BASE = API_URL.replace(/\/api\/?$/, '');
 
 /**
  * Campaign Service
@@ -145,6 +146,16 @@ const campaignService = {
         const result = await response.json();
         if (!result.success) throw new Error(result.error?.message || 'Failed to fetch platform accounts');
         return result;
+    },
+
+    /**
+     * Convert a stored image path to a full URL.
+     * Handles both relative paths (/uploads/...) and already-absolute URLs.
+     */
+    resolveImageUrl: (imageUrl) => {
+        if (!imageUrl) return '';
+        if (/^https?:\/\//i.test(imageUrl)) return imageUrl;
+        return `${SERVER_BASE}${imageUrl.startsWith('/') ? '' : '/'}${imageUrl}`;
     },
 
     /**

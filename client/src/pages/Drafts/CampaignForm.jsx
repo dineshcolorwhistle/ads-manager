@@ -982,7 +982,7 @@ const CampaignForm = () => {
                                             <label>Ad Image (Meta)</label>
                                             {creative.image_url ? (
                                                 <div className="image-preview-container">
-                                                    <img src={creative.image_url} alt="Ad creative" className="image-preview" />
+                                                    <img src={campaignService.resolveImageUrl(creative.image_url)} alt="Ad creative" className="image-preview" />
                                                     <div className="image-preview-actions">
                                                         <span className="image-preview-name">{creative.image_filename || 'External image'}</span>
                                                         <button type="button" className="btn-remove-image" onClick={() => handleRemoveImage(agIndex, cIndex)}>Remove</button>

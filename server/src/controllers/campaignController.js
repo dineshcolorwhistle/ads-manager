@@ -347,11 +347,10 @@ const uploadImage = async (req, res) => {
         }
 
         const { filename, originalname, size } = req.file;
-        const imageUrl = `${req.protocol}://${req.get('host')}/uploads/campaign-images/${filename}`;
 
         res.status(200).json({
             success: true,
-            data: { filename, originalname, size, image_url: imageUrl },
+            data: { filename, originalname, size, image_url: `/uploads/campaign-images/${filename}` },
             message: 'Image uploaded successfully',
             timestamp: new Date().toISOString()
         });
