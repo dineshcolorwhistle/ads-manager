@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import campaignService from '../../services/campaignService';
 import platformService from '../../services/platformService';
@@ -48,22 +48,37 @@ const CampaignForm = () => {
     const [clientsLoading, setClientsLoading] = useState(false);
     const [connectedPlatforms, setConnectedPlatforms] = useState([]);
     const [platformsLoading, setPlatformsLoading] = useState(true);
+    const [platformAccounts, setPlatformAccounts] = useState([]);
+    const [platformAccountsLoading, setPlatformAccountsLoading] = useState(false);
     const [error, setError] = useState(null);
     const [success, setSuccess] = useState(null);
     const [validationErrors, setValidationErrors] = useState({});
     const [insights, setInsights] = useState(null);
     const [insightsError, setInsightsError] = useState(null);
     const [uploadingImage, setUploadingImage] = useState({});
+    const [failureBanner, setFailureBanner] = useState(null);
+    const messageTimerRef = useRef(null);
 
     // Auto-clear transient messages
     useEffect(() => {
         if (!error && !success) return;
-        const timer = setTimeout(() => {
+        if (messageTimerRef.current) clearTimeout(messageTimerRef.current);
+        messageTimerRef.current = setTimeout(() => {
             setError(null);
             setSuccess(null);
         }, 5000);
-        return () => clearTimeout(timer);
+        return () => {
+            if (messageTimerRef.current) clearTimeout(messageTimerRef.current);
+        };
     }, [error, success]);
+
+    // Auto-hide publish failure banner (failure_reason lives on the campaign model, so we keep a transient UI copy)
+    useEffect(() => {
+        if (formData.status !== 'FAILED' || !formData.failure_reason) return;
+        setFailureBanner(formData.failure_reason);
+        const t = setTimeout(() => setFailureBanner(null), 5000);
+        return () => clearTimeout(t);
+    }, [formData.status, formData.failure_reason]);
 
     // Pre-fill client from URL when admin creates campaign (e.g. from Admin Clients "Create campaign")
     useEffect(() => {
@@ -109,11 +124,39 @@ const CampaignForm = () => {
 
                 // Auto-select first connected platform if creating new (not editing)
                 if (!isEdit && platforms && platforms.length > 0) {
-                    setFormData(prev => ({
-                        ...prev,
-                        platform: platforms[0].platform,
-                        platform_account_id: platforms[0].platform_account_id
-                    }));
+                    setFormData(prev => {
+                        const next = {
+                            ...prev,
+                            platform: platforms[0].platform,
+                            platform_account_id: platforms[0].platform_account_id
+                        };
+
+                        if (platforms[0].platform === 'meta') {
+                            const metaAccounts = platformAccounts.filter(a => a.platform === 'meta');
+                            const preferred = localStorage.getItem('preferred_meta_account_id');
+                            const preferredExists = preferred && metaAccounts.some(a => a.platform_account_id === preferred);
+                            if (preferredExists) {
+                                next.platform_account_id = preferred;
+                            } else if (metaAccounts.length > 0) {
+                                // If the connected credential's account id is stale/first-found,
+                                // default to the first discovered account but keep it selectable.
+                                next.platform_account_id = metaAccounts[0].platform_account_id;
+                            }
+                        }
+
+                        if (platforms[0].platform === 'google') {
+                            const googleAccounts = platformAccounts.filter(a => a.platform === 'google');
+                            const preferred = localStorage.getItem('preferred_google_account_id');
+                            const preferredExists = preferred && googleAccounts.some(a => a.platform_account_id === preferred);
+                            if (preferredExists) {
+                                next.platform_account_id = preferred;
+                            } else if (googleAccounts.length > 0) {
+                                next.platform_account_id = googleAccounts[0].platform_account_id;
+                            }
+                        }
+
+                        return next;
+                    });
                 }
             } catch (err) {
                 console.error('Failed to fetch connected platforms', err);
@@ -123,6 +166,28 @@ const CampaignForm = () => {
             }
         };
         fetchConnectedPlatforms();
+    }, [isAdmin, isEdit, platformAccounts]);
+
+    // Fetch discovered platform accounts (used for Meta ad account selection)
+    useEffect(() => {
+        // For admin "create new" flows, the accounts endpoint is not client-scoped today.
+        // Avoid fetching until a better admin-scoped endpoint exists.
+        if (isAdmin && !isEdit) return;
+
+        const fetchAccounts = async () => {
+            try {
+                setPlatformAccountsLoading(true);
+                const accounts = await platformService.getAccounts();
+                setPlatformAccounts(Array.isArray(accounts) ? accounts : []);
+            } catch (err) {
+                console.error('Failed to fetch platform accounts', err);
+                setPlatformAccounts([]);
+            } finally {
+                setPlatformAccountsLoading(false);
+            }
+        };
+
+        fetchAccounts();
     }, [isAdmin, isEdit]);
 
     // When admin is creating a campaign for a client, load that client's connected platforms
@@ -382,11 +447,63 @@ const CampaignForm = () => {
         const platformData = connectedPlatforms.find(p => p.platform === selectedPlatform);
 
         setValidationErrors(prev => ({ ...prev, platform: undefined, platform_account_id: undefined }));
-        setFormData(prev => ({
-            ...prev,
-            platform: selectedPlatform,
-            platform_account_id: platformData ? platformData.platform_account_id : ''
-        }));
+        setFormData(prev => {
+            const next = {
+                ...prev,
+                platform: selectedPlatform,
+                platform_account_id: platformData ? platformData.platform_account_id : ''
+            };
+
+            // Meta can have multiple discovered ad accounts. Prefer:
+            // 1) a saved preference, if still available
+            // 2) the platform's current connected account id (from credentials)
+            // 3) the first discovered Meta account
+            if (selectedPlatform === 'meta') {
+                const metaAccounts = platformAccounts.filter(a => a.platform === 'meta');
+                const preferred = localStorage.getItem('preferred_meta_account_id');
+                const preferredExists = preferred && metaAccounts.some(a => a.platform_account_id === preferred);
+                if (preferredExists) {
+                    next.platform_account_id = preferred;
+                } else if (platformData && metaAccounts.some(a => a.platform_account_id === platformData.platform_account_id)) {
+                    next.platform_account_id = platformData.platform_account_id;
+                } else if (metaAccounts.length > 0) {
+                    next.platform_account_id = metaAccounts[0].platform_account_id;
+                }
+            }
+
+            // Google can have multiple accessible accounts. Prefer:
+            // 1) a saved preference, if still available
+            // 2) the platform's current connected account id (from credentials)
+            // 3) the first discovered Google account
+            if (selectedPlatform === 'google') {
+                const googleAccounts = platformAccounts.filter(a => a.platform === 'google');
+                const preferred = localStorage.getItem('preferred_google_account_id');
+                const preferredExists = preferred && googleAccounts.some(a => a.platform_account_id === preferred);
+                if (preferredExists) {
+                    next.platform_account_id = preferred;
+                } else if (platformData && googleAccounts.some(a => a.platform_account_id === platformData.platform_account_id)) {
+                    next.platform_account_id = platformData.platform_account_id;
+                } else if (googleAccounts.length > 0) {
+                    next.platform_account_id = googleAccounts[0].platform_account_id;
+                }
+            }
+
+            return next;
+        });
+    };
+
+    const handleMetaAccountChange = (e) => {
+        const value = e.target.value;
+        setValidationErrors(prev => ({ ...prev, platform_account_id: undefined }));
+        setFormData(prev => ({ ...prev, platform_account_id: value }));
+        if (value) localStorage.setItem('preferred_meta_account_id', value);
+    };
+
+    const handleGoogleAccountChange = (e) => {
+        const value = e.target.value;
+        setValidationErrors(prev => ({ ...prev, platform_account_id: undefined }));
+        setFormData(prev => ({ ...prev, platform_account_id: value }));
+        if (value) localStorage.setItem('preferred_google_account_id', value);
     };
 
     const handleAdGroupChange = (index, field, value) => {
@@ -651,9 +768,9 @@ const CampaignForm = () => {
             <form className="campaign-form">
                 {error && <div className="error-message">{error}</div>}
                 {success && <div className="success-message">{success}</div>}
-                {formData.status === 'FAILED' && formData.failure_reason && (
+                {formData.status === 'FAILED' && failureBanner && (
                     <div className="failure-banner">
-                        <strong>Publish Failed:</strong> {formData.failure_reason}
+                        <strong>Publish Failed:</strong> {failureBanner}
                     </div>
                 )}
 
@@ -771,6 +888,76 @@ const CampaignForm = () => {
                             {validationErrors.objective && <span className="field-error">{validationErrors.objective}</span>}
                         </div>
                     </div>
+
+                    {formData.platform === 'meta' && (
+                        <div className="form-row">
+                            <div className="form-group">
+                                <label>Meta Ad Account <span className="required">*</span></label>
+                                {platformAccountsLoading ? (
+                                    <div className="platform-loading">
+                                        <div className="spinner-small"></div>
+                                        <span>Loading Meta accounts…</span>
+                                    </div>
+                                ) : (
+                                    <>
+                                        <select
+                                            value={formData.platform_account_id || ''}
+                                            onChange={handleMetaAccountChange}
+                                            className={validationErrors.platform_account_id ? 'input-error' : ''}
+                                        >
+                                            <option value="">— Select ad account —</option>
+                                            {platformAccounts
+                                                .filter(a => a.platform === 'meta')
+                                                .map(acc => (
+                                                    <option key={acc._id || acc.platform_account_id} value={acc.platform_account_id}>
+                                                        {acc.name} ({acc.platform_account_id})
+                                                    </option>
+                                                ))}
+                                        </select>
+                                        {validationErrors.platform_account_id && (
+                                            <span className="field-error">{validationErrors.platform_account_id}</span>
+                                        )}
+                                        <small>Choose which Meta ad account this campaign will publish to.</small>
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {formData.platform === 'google' && (
+                        <div className="form-row">
+                            <div className="form-group">
+                                <label>Google Ads Account <span className="required">*</span></label>
+                                {platformAccountsLoading ? (
+                                    <div className="platform-loading">
+                                        <div className="spinner-small"></div>
+                                        <span>Loading Google accounts…</span>
+                                    </div>
+                                ) : (
+                                    <>
+                                        <select
+                                            value={formData.platform_account_id || ''}
+                                            onChange={handleGoogleAccountChange}
+                                            className={validationErrors.platform_account_id ? 'input-error' : ''}
+                                        >
+                                            <option value="">— Select ad account —</option>
+                                            {platformAccounts
+                                                .filter(a => a.platform === 'google')
+                                                .map(acc => (
+                                                    <option key={acc._id || acc.platform_account_id} value={acc.platform_account_id}>
+                                                        {acc.name} ({acc.platform_account_id})
+                                                    </option>
+                                                ))}
+                                        </select>
+                                        {validationErrors.platform_account_id && (
+                                            <span className="field-error">{validationErrors.platform_account_id}</span>
+                                        )}
+                                        <small>Choose which Google Ads account this campaign will publish to.</small>
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                    )}
 
                     {formData.platform === 'meta' && (
                         <div className="form-row">

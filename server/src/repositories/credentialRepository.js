@@ -28,9 +28,10 @@ const upsertCredential = async (credentialData) => {
 const findCredentialByClientAndPlatform = async (clientId, platform, platformAccountId) => {
     try {
         const query = { client_id: clientId, platform };
-        // Meta: one access token can access all ad accounts; find by client+platform only.
-        // Campaign's platform_account_id is used as the target account in the API call.
-        if (platformAccountId && platform !== 'meta') {
+        // Meta + Google: one OAuth connection can access multiple accounts.
+        // We store tokens once per client+platform and use the campaign's
+        // platform_account_id only as the target account in the API call.
+        if (platformAccountId && !['meta', 'google'].includes(platform)) {
             query.platform_account_id = platformAccountId;
         }
 

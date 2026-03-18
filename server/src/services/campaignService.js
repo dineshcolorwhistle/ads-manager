@@ -6,6 +6,28 @@ const credentialRepository = require('../repositories/credentialRepository');
 const googleAdapter = require('../platforms/googleAdapter');
 const metaAdapter = require('../platforms/metaAdapter');
 const logger = require('../utils/logger');
+const fs = require('fs');
+const path = require('path');
+
+const CAMPAIGN_IMAGES_DIR = path.join(__dirname, '../../uploads/campaign-images');
+
+const safeUnlinkCampaignImage = async (filename) => {
+    try {
+        const name = String(filename || '').trim();
+        if (!name) return false;
+        // Prevent path traversal; only allow deleting files within the uploads folder.
+        if (path.basename(name) !== name) return false;
+
+        const filePath = path.join(CAMPAIGN_IMAGES_DIR, name);
+        await fs.promises.unlink(filePath);
+        return true;
+    } catch (err) {
+        // Ignore missing files; log other errors for visibility
+        if (err && (err.code === 'ENOENT' || err.code === 'ENOTDIR')) return false;
+        logger.warn('CAMPAIGN_SERVICE', `Failed to delete campaign image file "${filename}"`, { error: err.message });
+        return false;
+    }
+};
 
 /**
  * Campaign Service
@@ -315,6 +337,14 @@ const deleteCampaignFull = async (id, clientId, role) => {
     // 4. Local Deletion (Cascading) — only runs after platform delete succeeds (or campaign was not published)
     const adGroups = await adGroupRepository.findAllByCampaign(id, effectiveClientId);
     for (const ag of adGroups) {
+        // Delete any uploaded creative images associated to this ad group.
+        const creatives = await adCreativeRepository.findAllByAdGroup(ag._id, effectiveClientId);
+        for (const c of creatives) {
+            if (c && c.image_filename) {
+                await safeUnlinkCampaignImage(c.image_filename);
+            }
+        }
+
         await adCreativeRepository.deleteByAdGroup(ag._id, effectiveClientId);
     }
     await adGroupRepository.deleteByCampaign(id, effectiveClientId);
