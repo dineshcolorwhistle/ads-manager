@@ -13,8 +13,17 @@ const findById = async (id) => {
     return await CampaignRequest.findById(id);
 };
 
+const updateById = async (id, update) => {
+    return await CampaignRequest.findByIdAndUpdate(
+        id,
+        update,
+        { new: true, runValidators: true }
+    );
+};
+
 module.exports = {
     create,
-    findById
+    findById,
+    updateById
 };
 

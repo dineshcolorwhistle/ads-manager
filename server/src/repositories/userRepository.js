@@ -71,6 +71,33 @@ const findUsersByClientId = async (clientId) => {
 };
 
 /**
+ * Find first active CLIENT user for a client workspace.
+ * @param {string} clientId
+ * @returns {Promise<Object|null>}
+ */
+const findFirstActiveClientUserByClientId = async (clientId) => {
+    try {
+        return await User.findOne({ client_id: clientId, role: 'CLIENT', status: 'active' }).sort({ created_at: 1 });
+    } catch (error) {
+        logger.error('USER_REPOSITORY', 'Failed to find client user by client ID', error);
+        throw error;
+    }
+};
+
+/**
+ * Find the first active admin user (for automation fallback).
+ * @returns {Promise<Object|null>}
+ */
+const findFirstAdmin = async () => {
+    try {
+        return await User.findOne({ role: 'ADMIN', status: 'active' }).sort({ created_at: 1 });
+    } catch (error) {
+        logger.error('USER_REPOSITORY', 'Failed to find first admin user', error);
+        throw error;
+    }
+};
+
+/**
  * Update user
  * @param {string} userId - User ID
  * @param {Object} updates - Updates to apply
@@ -123,6 +150,8 @@ module.exports = {
     findUserByEmail,
     findUserById,
     findUsersByClientId,
+    findFirstActiveClientUserByClientId,
+    findFirstAdmin,
     updateUser,
     softDeleteUser
 };
