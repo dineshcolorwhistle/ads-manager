@@ -17,7 +17,12 @@ app.use(express.json()); // Parse JSON bodies
 app.use(express.urlencoded({ extended: true })); // Parse URL-encoded bodies
 
 // Serve uploaded campaign images
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+// In production, many setups only proxy `/api/*` to Node. So we expose uploads on both:
+// - `/uploads/*` (direct)
+// - `/api/uploads/*` (via API proxy)
+const uploadsPath = path.join(__dirname, '../uploads');
+app.use('/uploads', express.static(uploadsPath));
+app.use('/api/uploads', express.static(uploadsPath));
 
 // Request logging middleware
 app.use((req, res, next) => {

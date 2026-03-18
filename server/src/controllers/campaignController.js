@@ -348,9 +348,10 @@ const uploadImage = async (req, res) => {
 
         const { filename, originalname, size } = req.file;
 
+        // Use `/api/uploads/*` so this works when only `/api` is proxied to Node in production.
         res.status(200).json({
             success: true,
-            data: { filename, originalname, size, image_url: `/uploads/campaign-images/${filename}` },
+            data: { filename, originalname, size, image_url: `/api/uploads/campaign-images/${filename}` },
             message: 'Image uploaded successfully',
             timestamp: new Date().toISOString()
         });
