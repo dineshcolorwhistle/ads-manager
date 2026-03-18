@@ -30,7 +30,8 @@ const getCampaignInsights = async (credentials, campaignExternalId) => {
         ];
 
         const params = {
-            date_preset: 'LAST_7_DAYS'
+            // Meta expects specific snake_case presets like "last_7d"
+            date_preset: 'last_7d'
         };
 
         const insights = await campaign.getInsights(fields, params);
