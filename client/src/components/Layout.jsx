@@ -1,6 +1,7 @@
 import React from 'react';
-import { Link, NavLink, useNavigate, useLocation } from 'react-router-dom';
+import { Link, NavLink, useLocation } from 'react-router-dom';
 import authService from '../services/authService';
+import UserAvatarMenu from './UserAvatarMenu';
 import './Layout.css';
 
 /**
@@ -8,15 +9,9 @@ import './Layout.css';
  * Base layout with header, main content, and footer
  */
 function Layout({ children }) {
-    const navigate = useNavigate();
     const location = useLocation();
     const user = authService.getCurrentUser();
     const isLoginPage = location.pathname === '/login';
-
-    const handleLogout = () => {
-        authService.logout();
-        navigate('/login');
-    };
 
     return (
         <div className="layout">
@@ -45,8 +40,7 @@ function Layout({ children }) {
                             )}
                         </nav>
                         <div className="user-nav">
-                            {user && <span className="user-email">{user.email}</span>}
-                            <button onClick={handleLogout} className="logout-btn">Logout</button>
+                            <UserAvatarMenu user={user} />
                         </div>
                     </div>
                 </header>

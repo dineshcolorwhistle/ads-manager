@@ -10,6 +10,7 @@ import ResetPassword from './pages/ResetPassword';
 import OAuthCallback from './pages/OAuthCallback';
 import ApiSettings from './pages/Settings/ApiSettings';
 import AdminClients from './pages/Admin/AdminClients';
+import Profile from './pages/Profile';
 import ProtectedRoute from './components/ProtectedRoute';
 
 /**
@@ -55,6 +56,11 @@ function App() {
                 <Route path="/settings/api" element={
                     <ProtectedRoute>
                         <ApiSettings />
+                    </ProtectedRoute>
+                } />
+                <Route path="/profile" element={
+                    <ProtectedRoute>
+                        <Profile />
                     </ProtectedRoute>
                 } />
                 <Route path="/admin/clients" element={
