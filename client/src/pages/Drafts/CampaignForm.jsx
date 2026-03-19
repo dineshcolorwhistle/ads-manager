@@ -79,6 +79,7 @@ const CampaignForm = () => {
     const [uploadingImage, setUploadingImage] = useState({});
     const [failureBanner, setFailureBanner] = useState(null);
     const messageTimerRef = useRef(null);
+    const startDateInputRef = useRef(null);
 
     // Auto-clear transient messages
     useEffect(() => {
@@ -1230,13 +1231,32 @@ const CampaignForm = () => {
                         </div>
                         <div className="form-group">
                             <label>Start Date <span className="required">*</span></label>
-                            <input
-                                type="date"
-                                name="start_date"
-                                value={formData.start_date}
-                                onChange={handleChange}
-                                className={validationErrors.start_date ? 'input-error' : ''}
-                            />
+                            <div className="date-input-wrap">
+                                <input
+                                    ref={startDateInputRef}
+                                    type="date"
+                                    name="start_date"
+                                    value={formData.start_date}
+                                    onChange={handleChange}
+                                    className={validationErrors.start_date ? 'input-error' : ''}
+                                />
+                                <button
+                                    type="button"
+                                    className="date-picker-btn"
+                                    aria-label="Open start date calendar"
+                                    onClick={() => {
+                                        const el = startDateInputRef.current;
+                                        if (!el) return;
+                                        if (typeof el.showPicker === 'function') {
+                                            el.showPicker();
+                                        } else {
+                                            el.focus();
+                                        }
+                                    }}
+                                >
+                                    📅
+                                </button>
+                            </div>
                             {validationErrors.start_date && <span className="field-error">{validationErrors.start_date}</span>}
                         </div>
                     </div>
