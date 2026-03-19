@@ -64,6 +64,49 @@ const adCreativeSchema = new mongoose.Schema({
         default: null
     },
 
+    /** Google Responsive Display Ad – short business / brand name */
+    business_name: {
+        type: String,
+        trim: true,
+        default: ''
+    },
+
+    /** Square marketing image (1:1) for Google Display */
+    square_image_url: {
+        type: String,
+        trim: true,
+        default: null
+    },
+    square_image_filename: {
+        type: String,
+        trim: true,
+        default: null
+    },
+
+    /** Landscape marketing image (~1.91:1) for Google Display */
+    landscape_image_url: {
+        type: String,
+        trim: true,
+        default: null
+    },
+    landscape_image_filename: {
+        type: String,
+        trim: true,
+        default: null
+    },
+
+    /** Logo image for Google Display */
+    logo_url: {
+        type: String,
+        trim: true,
+        default: null
+    },
+    logo_filename: {
+        type: String,
+        trim: true,
+        default: null
+    },
+
     // Metadata for platform-specific rendering
     platform_data: {
         type: Map,

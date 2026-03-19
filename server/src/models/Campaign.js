@@ -94,6 +94,22 @@ const campaignSchema = new mongoose.Schema({
         default: null
     },
 
+    /**
+     * Google Ads–specific settings (Search vs Display, geo, language).
+     * Used by the campaign form and publish pipeline for Display campaigns.
+     */
+    google_settings: {
+        ad_format: {
+            type: String,
+            enum: ['SEARCH', 'DISPLAY'],
+            default: 'SEARCH'
+        },
+        /** BCP-47 / Google Ads language constant codes, e.g. en, es */
+        languages: [{ type: String, trim: true, lowercase: true }],
+        /** ISO 3166-1 alpha-2 country codes for location targeting */
+        location_countries: [{ type: String, trim: true, uppercase: true }]
+    },
+
     external_id: {
         type: String,
         default: null

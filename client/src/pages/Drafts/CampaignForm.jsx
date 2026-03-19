@@ -13,9 +13,20 @@ const CampaignForm = () => {
     const isEdit = !!id;
     const isAdmin = authService.getCurrentUser()?.role === 'ADMIN';
 
-    const defaultTargeting = () => ({ countries: ['US'], age_min: 18, age_max: 65, genders: [] });
+    const defaultGoogleSettings = () => ({
+        ad_format: 'SEARCH',
+        languages: ['en'],
+        location_countries: ['US']
+    });
+    const defaultTargeting = () => ({
+        countries: ['US'],
+        age_min: 18,
+        age_max: 65,
+        genders: [],
+        audience_description: '',
+        placement_targets: []
+    });
     const MAX_HEADLINES = 5;
-    const MAX_DESCRIPTIONS = 4;
     const defaultCreative = () => ({
         name: 'Text Creative 1',
         headlines: [{ text: '' }],
@@ -23,7 +34,14 @@ const CampaignForm = () => {
         final_urls: [''],
         call_to_action_type: 'LEARN_MORE',
         image_url: '',
-        image_filename: ''
+        image_filename: '',
+        business_name: '',
+        square_image_url: '',
+        square_image_filename: '',
+        landscape_image_url: '',
+        landscape_image_filename: '',
+        logo_url: '',
+        logo_filename: ''
     });
     const [formData, setFormData] = useState({
         name: '',
@@ -36,6 +54,7 @@ const CampaignForm = () => {
         platform_account_id: '',
         facebook_page_id: '',
         client_id: '', // used by admin when creating campaign for a client
+        google_settings: defaultGoogleSettings(),
         ad_groups: [
             {
                 name: 'Default Ad Group',
@@ -274,7 +293,7 @@ const CampaignForm = () => {
                     if (!data.ad_groups || data.ad_groups.length === 0) {
                         data.ad_groups = [{ name: '', targeting: defaultTargeting(), creatives: [defaultCreative()] }];
                     }
-                    normalizeAdGroupsForUI(data);
+                    normalizeCampaignForUI(data);
                     setFormData(data);
                     // Stop polling once status is no longer PUBLISHING
                     if (data.status !== 'PUBLISHING') {
@@ -296,17 +315,41 @@ const CampaignForm = () => {
         return () => clearInterval(pollInterval);
     }, [formData.status]);
 
+    const normalizeCampaignForUI = (data) => {
+        data.google_settings = { ...defaultGoogleSettings(), ...(data.google_settings || {}) };
+        if (!Array.isArray(data.google_settings.languages) || data.google_settings.languages.length === 0) {
+            data.google_settings.languages = ['en'];
+        }
+        if (!Array.isArray(data.google_settings.location_countries) || data.google_settings.location_countries.length === 0) {
+            data.google_settings.location_countries = ['US'];
+        }
+        normalizeAdGroupsForUI(data);
+    };
+
     const normalizeAdGroupsForUI = (data) => {
         if (!data.ad_groups) return;
         data.ad_groups.forEach(ag => {
             if (!ag.targeting || !Array.isArray(ag.targeting.countries)) {
                 ag.targeting = defaultTargeting();
+            } else {
+                ag.targeting = { ...defaultTargeting(), ...ag.targeting };
+                if (!Array.isArray(ag.targeting.placement_targets)) ag.targeting.placement_targets = [];
+                if (ag.targeting.audience_description === undefined || ag.targeting.audience_description === null) {
+                    ag.targeting.audience_description = '';
+                }
             }
             (ag.creatives || []).forEach(c => {
                 if (!Array.isArray(c.headlines) || c.headlines.length === 0) c.headlines = [{ text: '' }];
                 if (!Array.isArray(c.descriptions) || c.descriptions.length === 0) c.descriptions = [{ text: '' }];
                 if (!Array.isArray(c.final_urls) || c.final_urls.length === 0) c.final_urls = [''];
                 if (c.call_to_action_type === undefined || c.call_to_action_type === null) c.call_to_action_type = 'LEARN_MORE';
+                if (c.business_name === undefined || c.business_name === null) c.business_name = '';
+                if (c.square_image_url === undefined) c.square_image_url = '';
+                if (c.square_image_filename === undefined) c.square_image_filename = '';
+                if (c.landscape_image_url === undefined) c.landscape_image_url = '';
+                if (c.landscape_image_filename === undefined) c.landscape_image_filename = '';
+                if (c.logo_url === undefined) c.logo_url = '';
+                if (c.logo_filename === undefined) c.logo_filename = '';
             });
         });
     };
@@ -322,7 +365,7 @@ const CampaignForm = () => {
             if (!data.ad_groups || data.ad_groups.length === 0) {
                 data.ad_groups = [{ name: '', targeting: defaultTargeting(), creatives: [defaultCreative()] }];
             }
-            normalizeAdGroupsForUI(data);
+            normalizeCampaignForUI(data);
             setFormData(data);
             setInsights(null);
             setInsightsError(null);
@@ -376,6 +419,18 @@ const CampaignForm = () => {
             errors.facebook_page_id = 'Facebook Page ID is required when publishing to Meta';
         }
 
+        const gs = formData.google_settings || {};
+        if (formData.platform === 'google' && gs.ad_format === 'DISPLAY') {
+            const langs = Array.isArray(gs.languages) ? gs.languages.filter(Boolean) : [];
+            const locs = Array.isArray(gs.location_countries) ? gs.location_countries.filter(Boolean) : [];
+            if (langs.length === 0) {
+                errors.google_languages = 'Select at least one campaign language for Google Display';
+            }
+            if (locs.length === 0) {
+                errors.google_locations = 'Add at least one location (country code) for Google Display';
+            }
+        }
+
         // Validate ad groups
         if (formData.ad_groups && formData.ad_groups.length > 0) {
             const agErrors = [];
@@ -405,6 +460,27 @@ const CampaignForm = () => {
                                 cErr.final_urls = 'At least one destination URL is required for Meta';
                             }
                         }
+                        if (formData.platform === 'google' && formData.google_settings?.ad_format === 'DISPLAY') {
+                            const urls = creative.final_urls && Array.isArray(creative.final_urls)
+                                ? creative.final_urls.filter(u => u && String(u).trim() !== '')
+                                : [];
+                            if (urls.length === 0) {
+                                cErr.final_urls = 'Final URL is required for Google Display ads';
+                            }
+                            const bn = (creative.business_name && String(creative.business_name).trim()) || '';
+                            if (!bn) {
+                                cErr.business_name = 'Business name is required for Google Display';
+                            }
+                            if (!creative.square_image_url || String(creative.square_image_url).trim() === '') {
+                                cErr.square_image = 'Square image is required for Google Display';
+                            }
+                            if (!creative.landscape_image_url || String(creative.landscape_image_url).trim() === '') {
+                                cErr.landscape_image = 'Landscape image is required for Google Display';
+                            }
+                            if (!creative.logo_url || String(creative.logo_url).trim() === '') {
+                                cErr.logo_image = 'Logo is required for Google Display';
+                            }
+                        }
                         if (Object.keys(cErr).length > 0) {
                             cErrors[cIndex] = cErr;
                         }
@@ -413,6 +489,20 @@ const CampaignForm = () => {
                         agErr.creatives = cErrors;
                     }
                 }
+                if (formData.platform === 'google' && formData.google_settings?.ad_format === 'DISPLAY') {
+                    const t = ag.targeting || {};
+                    const aud = (t.audience_description && String(t.audience_description).trim()) || '';
+                    if (!aud) {
+                        agErr.audience_description = 'Audience targeting (description) is required for Google Display';
+                    }
+                    const placements = Array.isArray(t.placement_targets)
+                        ? t.placement_targets.map(p => String(p || '').trim()).filter(Boolean)
+                        : [];
+                    if (placements.length === 0) {
+                        agErr.placement_targets = 'At least one placement URL is required for Google Display';
+                    }
+                }
+
                 if (Object.keys(agErr).length > 0) {
                     agErrors[agIndex] = agErr;
                 }
@@ -510,6 +600,29 @@ const CampaignForm = () => {
         if (value) localStorage.setItem('preferred_google_account_id', value);
     };
 
+    const handleGoogleSettingsChange = (partial) => {
+        setFormData(prev => ({
+            ...prev,
+            google_settings: { ...defaultGoogleSettings(), ...prev.google_settings, ...partial }
+        }));
+    };
+
+    const parseCommaTokens = (raw, upperCase = false) => {
+        const s = String(raw || '');
+        return s
+            .split(/[,]+/)
+            .map((t) => (upperCase ? t.trim().toUpperCase() : t.trim().toLowerCase()))
+            .filter(Boolean);
+    };
+
+    const handleAdGroupDisplayTargeting = (agIndex, key, value) => {
+        const newAdGroups = [...formData.ad_groups];
+        const ag = newAdGroups[agIndex];
+        ag.targeting = { ...defaultTargeting(), ...ag.targeting, [key]: value };
+        newAdGroups[agIndex] = ag;
+        setFormData(prev => ({ ...prev, ad_groups: newAdGroups }));
+    };
+
     const handleAdGroupChange = (index, field, value) => {
         const newAdGroups = [...formData.ad_groups];
         newAdGroups[index] = { ...newAdGroups[index], [field]: value };
@@ -571,7 +684,8 @@ const CampaignForm = () => {
         const newAdGroups = [...formData.ad_groups];
         const creative = { ...newAdGroups[agIndex].creatives[cIndex] };
         const list = Array.isArray(creative[field]) ? creative[field] : [{ text: '' }];
-        const max = field === 'headlines' ? MAX_HEADLINES : field === 'descriptions' ? MAX_DESCRIPTIONS : Infinity;
+        const maxDescriptions = formData.platform === 'meta' ? 4 : 5;
+        const max = field === 'headlines' ? MAX_HEADLINES : field === 'descriptions' ? maxDescriptions : Infinity;
         if (list.length >= max) return;
         creative[field] = [...list, { text: '' }];
         newAdGroups[agIndex].creatives[cIndex] = creative;
@@ -616,6 +730,51 @@ const CampaignForm = () => {
         creative.image_filename = '';
         newAdGroups[agIndex].creatives[cIndex] = creative;
         setFormData(prev => ({ ...prev, ad_groups: newAdGroups }));
+    };
+
+    const handleCreativeImageSlotUpload = async (agIndex, cIndex, slot, file) => {
+        if (!file) return;
+        const key = `${agIndex}-${cIndex}-${slot}`;
+        setUploadingImage((prev) => ({ ...prev, [key]: true }));
+        try {
+            const result = await campaignService.uploadImage(file);
+            const { image_url, filename } = result.data;
+            const newAdGroups = [...formData.ad_groups];
+            const creative = { ...newAdGroups[agIndex].creatives[cIndex] };
+            if (slot === 'square') {
+                creative.square_image_url = image_url;
+                creative.square_image_filename = filename;
+            } else if (slot === 'landscape') {
+                creative.landscape_image_url = image_url;
+                creative.landscape_image_filename = filename;
+            } else if (slot === 'logo') {
+                creative.logo_url = image_url;
+                creative.logo_filename = filename;
+            }
+            newAdGroups[agIndex].creatives[cIndex] = creative;
+            setFormData((prev) => ({ ...prev, ad_groups: newAdGroups }));
+        } catch (err) {
+            setError(err.message || 'Failed to upload image');
+        } finally {
+            setUploadingImage((prev) => ({ ...prev, [key]: false }));
+        }
+    };
+
+    const handleRemoveCreativeImageSlot = (agIndex, cIndex, slot) => {
+        const newAdGroups = [...formData.ad_groups];
+        const creative = { ...newAdGroups[agIndex].creatives[cIndex] };
+        if (slot === 'square') {
+            creative.square_image_url = '';
+            creative.square_image_filename = '';
+        } else if (slot === 'landscape') {
+            creative.landscape_image_url = '';
+            creative.landscape_image_filename = '';
+        } else if (slot === 'logo') {
+            creative.logo_url = '';
+            creative.logo_filename = '';
+        }
+        newAdGroups[agIndex].creatives[cIndex] = creative;
+        setFormData((prev) => ({ ...prev, ad_groups: newAdGroups }));
     };
 
     const removeAdGroup = (index) => {
@@ -729,6 +888,8 @@ const CampaignForm = () => {
     };
 
     const noPlatformsConnected = !platformsLoading && connectedPlatforms.length === 0;
+    const isGoogleDisplay = formData.platform === 'google' && formData.google_settings?.ad_format === 'DISPLAY';
+    const maxDescriptionsAllowed = formData.platform === 'meta' ? 4 : 5;
 
     if (loading && isEdit && !formData.name) {
         return (
@@ -963,6 +1124,56 @@ const CampaignForm = () => {
                                     </>
                                 )}
                             </div>
+                            <div className="form-group">
+                                <label>Google campaign type</label>
+                                <select
+                                    value={formData.google_settings?.ad_format || 'SEARCH'}
+                                    onChange={(e) => handleGoogleSettingsChange({ ad_format: e.target.value })}
+                                >
+                                    <option value="SEARCH">Search (Responsive Search Ads)</option>
+                                    <option value="DISPLAY">Display (Responsive Display Ads / GDN)</option>
+                                </select>
+                                <small>Display adds images, logo, placements, and audience fields for publishing.</small>
+                            </div>
+                        </div>
+                    )}
+
+                    {formData.platform === 'google' && isGoogleDisplay && (
+                        <div className="form-row">
+                            <div className="form-group">
+                                <label>Location targeting (countries) <span className="required">*</span></label>
+                                <input
+                                    value={(formData.google_settings?.location_countries || []).join(', ')}
+                                    onChange={(e) =>
+                                        handleGoogleSettingsChange({
+                                            location_countries: parseCommaTokens(e.target.value, true)
+                                        })
+                                    }
+                                    placeholder="e.g. US, GB, CA"
+                                    className={validationErrors.google_locations ? 'input-error' : ''}
+                                />
+                                {validationErrors.google_locations && (
+                                    <span className="field-error">{validationErrors.google_locations}</span>
+                                )}
+                                <small>Comma-separated ISO country codes (mapped to Google geo targets when publishing).</small>
+                            </div>
+                            <div className="form-group">
+                                <label>Languages <span className="required">*</span></label>
+                                <input
+                                    value={(formData.google_settings?.languages || []).join(', ')}
+                                    onChange={(e) =>
+                                        handleGoogleSettingsChange({
+                                            languages: parseCommaTokens(e.target.value, false)
+                                        })
+                                    }
+                                    placeholder="e.g. en, es"
+                                    className={validationErrors.google_languages ? 'input-error' : ''}
+                                />
+                                {validationErrors.google_languages && (
+                                    <span className="field-error">{validationErrors.google_languages}</span>
+                                )}
+                                <small>Comma-separated language codes (en, es, fr, de, …).</small>
+                            </div>
                         </div>
                     )}
 
@@ -1035,7 +1246,11 @@ const CampaignForm = () => {
                     <div className="form-section-header form-section-header-row">
                         <div>
                             <h2>2. Ad Groups & Creatives</h2>
-                            <p className="form-section-subtitle">Ad group names and headline/description copy for your ads.</p>
+                            <p className="form-section-subtitle">
+                                {isGoogleDisplay
+                                    ? 'Ad group name, audience & placement targeting, then responsive display creative (images + text).'
+                                    : 'Ad group names and headline/description copy for your ads.'}
+                            </p>
                         </div>
                         <button type="button" className="btn-secondary" onClick={addAdGroup}>+ Add Ad Group</button>
                     </div>
@@ -1060,6 +1275,53 @@ const CampaignForm = () => {
                                     <span className="field-error">{validationErrors.ad_groups[agIndex].name}</span>
                                 )}
                             </div>
+
+                            {isGoogleDisplay && (
+                                <>
+                                    <div className="form-group">
+                                        <label>Audience targeting <span className="required">*</span></label>
+                                        <textarea
+                                            rows={3}
+                                            value={ag.targeting?.audience_description || ''}
+                                            onChange={(e) =>
+                                                handleAdGroupDisplayTargeting(agIndex, 'audience_description', e.target.value)
+                                            }
+                                            placeholder="Describe who should see these ads (interests, demographics, remarketing). Refine further in Google Ads after publish."
+                                            className={validationErrors.ad_groups?.[agIndex]?.audience_description ? 'input-error' : ''}
+                                        />
+                                        {validationErrors.ad_groups?.[agIndex]?.audience_description && (
+                                            <span className="field-error">
+                                                {validationErrors.ad_groups[agIndex].audience_description}
+                                            </span>
+                                        )}
+                                    </div>
+                                    <div className="form-group">
+                                        <label>Placement targeting (URLs) <span className="required">*</span></label>
+                                        <textarea
+                                            rows={4}
+                                            value={(ag.targeting?.placement_targets || []).join('\n')}
+                                            onChange={(e) => {
+                                                const lines = [];
+                                                for (const line of e.target.value.split(/\r?\n/)) {
+                                                    for (const bit of line.split(',')) {
+                                                        const t = bit.trim();
+                                                        if (t) lines.push(t);
+                                                    }
+                                                }
+                                                handleAdGroupDisplayTargeting(agIndex, 'placement_targets', lines);
+                                            }}
+                                            placeholder={'One URL per line (or comma-separated)\ne.g. https://www.example.com'}
+                                            className={validationErrors.ad_groups?.[agIndex]?.placement_targets ? 'input-error' : ''}
+                                        />
+                                        {validationErrors.ad_groups?.[agIndex]?.placement_targets && (
+                                            <span className="field-error">
+                                                {validationErrors.ad_groups[agIndex].placement_targets}
+                                            </span>
+                                        )}
+                                        <small>Managed placements on the Display Network (sites or pages where ads may appear).</small>
+                                    </div>
+                                </>
+                            )}
 
                             {formData.platform === 'meta' && (
                                 <div className="form-row targeting-row">
@@ -1108,7 +1370,139 @@ const CampaignForm = () => {
 
                             {ag.creatives.map((creative, cIndex) => (
                                 <div key={cIndex} className="creative-block">
-                                    <h3>Text Creative</h3>
+                                    <h3>{isGoogleDisplay ? 'Ad creative (Display)' : 'Text creative'}</h3>
+
+                                    {isGoogleDisplay && (
+                                        <div className="text-field-group">
+                                            <label>Business name <span className="required">*</span></label>
+                                            <input
+                                                value={creative.business_name || ''}
+                                                onChange={(e) =>
+                                                    handleCreativeChange(agIndex, cIndex, 'business_name', e.target.value)
+                                                }
+                                                placeholder="Short brand or business name (shown on the ad)"
+                                                maxLength={25}
+                                                className={
+                                                    validationErrors.ad_groups?.[agIndex]?.creatives?.[cIndex]?.business_name
+                                                        ? 'input-error'
+                                                        : ''
+                                                }
+                                            />
+                                            {validationErrors.ad_groups?.[agIndex]?.creatives?.[cIndex]?.business_name && (
+                                                <span className="field-error">
+                                                    {validationErrors.ad_groups[agIndex].creatives[cIndex].business_name}
+                                                </span>
+                                            )}
+                                            <small>Up to 25 characters recommended for Google Display.</small>
+                                        </div>
+                                    )}
+
+                                    {isGoogleDisplay && (
+                                        <div className="display-assets-grid">
+                                            {[
+                                                {
+                                                    slot: 'square',
+                                                    label: 'Square image (1:1)',
+                                                    hint: 'Required — marketing image',
+                                                    url: creative.square_image_url,
+                                                    file: creative.square_image_filename,
+                                                    errKey: 'square_image'
+                                                },
+                                                {
+                                                    slot: 'landscape',
+                                                    label: 'Landscape image (~1.91:1)',
+                                                    hint: 'Required — main marketing image',
+                                                    url: creative.landscape_image_url,
+                                                    file: creative.landscape_image_filename,
+                                                    errKey: 'landscape_image'
+                                                },
+                                                {
+                                                    slot: 'logo',
+                                                    label: 'Logo',
+                                                    hint: 'Required — square logo',
+                                                    url: creative.logo_url,
+                                                    file: creative.logo_filename,
+                                                    errKey: 'logo_image'
+                                                }
+                                            ].map(({ slot, label, hint, url, file, errKey }) => {
+                                                const upKey = `${agIndex}-${cIndex}-${slot}`;
+                                                const err =
+                                                    validationErrors.ad_groups?.[agIndex]?.creatives?.[cIndex]?.[errKey];
+                                                return (
+                                                    <div key={slot} className="text-field-group display-asset-cell">
+                                                        <label>
+                                                            {label} <span className="required">*</span>
+                                                        </label>
+                                                        {url ? (
+                                                            <div className="image-preview-container">
+                                                                <img
+                                                                    src={campaignService.resolveImageUrl(url)}
+                                                                    alt={label}
+                                                                    className="image-preview display-asset-thumb"
+                                                                />
+                                                                <div className="image-preview-actions">
+                                                                    <span className="image-preview-name">{file || 'Image'}</span>
+                                                                    <button
+                                                                        type="button"
+                                                                        className="btn-remove-image"
+                                                                        onClick={() =>
+                                                                            handleRemoveCreativeImageSlot(agIndex, cIndex, slot)
+                                                                        }
+                                                                    >
+                                                                        Remove
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        ) : (
+                                                            <div
+                                                                className={`image-upload-zone image-upload-zone-compact ${uploadingImage[upKey] ? 'uploading' : ''}`}
+                                                                onDragOver={(e) => {
+                                                                    e.preventDefault();
+                                                                    e.currentTarget.classList.add('drag-over');
+                                                                }}
+                                                                onDragLeave={(e) => {
+                                                                    e.currentTarget.classList.remove('drag-over');
+                                                                }}
+                                                                onDrop={(e) => {
+                                                                    e.preventDefault();
+                                                                    e.currentTarget.classList.remove('drag-over');
+                                                                    const f = e.dataTransfer.files?.[0];
+                                                                    if (f) handleCreativeImageSlotUpload(agIndex, cIndex, slot, f);
+                                                                }}
+                                                                onClick={() =>
+                                                                    document.getElementById(`img-${slot}-${agIndex}-${cIndex}`)?.click()
+                                                                }
+                                                            >
+                                                                <input
+                                                                    id={`img-${slot}-${agIndex}-${cIndex}`}
+                                                                    type="file"
+                                                                    accept="image/jpeg,image/png,image/gif,image/webp"
+                                                                    style={{ display: 'none' }}
+                                                                    onChange={(e) => {
+                                                                        const f = e.target.files?.[0];
+                                                                        if (f) handleCreativeImageSlotUpload(agIndex, cIndex, slot, f);
+                                                                        e.target.value = '';
+                                                                    }}
+                                                                />
+                                                                {uploadingImage[upKey] ? (
+                                                                    <div className="upload-spinner-row">
+                                                                        <div className="spinner-small"></div>
+                                                                        <span>Uploading…</span>
+                                                                    </div>
+                                                                ) : (
+                                                                    <>
+                                                                        <span className="upload-label">Upload {label}</span>
+                                                                        <span className="upload-hint">{hint}</span>
+                                                                    </>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                        {err && <span className="field-error">{err}</span>}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
 
                                     <div className="text-field-group">
                                         <label>Headlines <span className="required">*</span></label>
@@ -1161,18 +1555,24 @@ const CampaignForm = () => {
                                             type="button"
                                             onClick={() => addTextField(agIndex, cIndex, 'descriptions')}
                                             className="btn-text-only"
-                                            disabled={(creative.descriptions?.length || 0) >= MAX_DESCRIPTIONS}
+                                            disabled={(creative.descriptions?.length || 0) >= maxDescriptionsAllowed}
                                         >
                                             + Add Description
                                         </button>
-                                        <small>{(creative.descriptions?.length || 0)}/{MAX_DESCRIPTIONS} descriptions</small>
+                                        <small>
+                                            {(creative.descriptions?.length || 0)}/{maxDescriptionsAllowed} descriptions
+                                            {isGoogleDisplay ? ' (up to 5 for Display)' : ''}
+                                        </small>
                                     </div>
 
                                     <div className="text-field-group creative-destination-url">
                                         <label>
-                                            Destination URL
+                                            Final URL
                                             {formData.platform === 'meta' && <span className="required"> *</span>}
-                                            {formData.platform === 'google' && <span className="label-hint"> (optional for Google Ads)</span>}
+                                            {formData.platform === 'google' && isGoogleDisplay && <span className="required"> *</span>}
+                                            {formData.platform === 'google' && !isGoogleDisplay && (
+                                                <span className="label-hint"> (optional for Search)</span>
+                                            )}
                                         </label>
                                         <input
                                             type="url"
@@ -1184,7 +1584,13 @@ const CampaignForm = () => {
                                         {validationErrors.ad_groups?.[agIndex]?.creatives?.[cIndex]?.final_urls && (
                                             <span className="field-error">{validationErrors.ad_groups[agIndex].creatives[cIndex].final_urls}</span>
                                         )}
-                                        <small>{formData.platform === 'meta' ? 'Required for Meta ads.' : 'Optional for Google Ads.'}</small>
+                                        <small>
+                                            {formData.platform === 'meta'
+                                                ? 'Required for Meta ads.'
+                                                : isGoogleDisplay
+                                                  ? 'Required landing page for Google Display ads.'
+                                                  : 'Optional for Google Search ads.'}
+                                        </small>
                                     </div>
 
                                     {formData.platform === 'meta' && (
@@ -1246,9 +1652,12 @@ const CampaignForm = () => {
                                         </div>
                                     )}
 
-                                    {formData.platform === 'meta' && (
+                                    {(formData.platform === 'meta' || formData.platform === 'google') && (
                                         <div className="text-field-group">
-                                            <label>Call to action</label>
+                                            <label>
+                                                Call to action
+                                                {isGoogleDisplay && <span className="label-hint"> (button on Display ad)</span>}
+                                            </label>
                                             <select
                                                 value={creative.call_to_action_type || 'LEARN_MORE'}
                                                 onChange={(e) => handleCreativeChange(agIndex, cIndex, 'call_to_action_type', e.target.value)}

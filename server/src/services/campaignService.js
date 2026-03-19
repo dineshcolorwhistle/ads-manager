@@ -112,7 +112,53 @@ const validatePlatformSpecific = async (platform, campaignId, clientId) => {
     }
 
     if (platform === 'google') {
-        // Future: Add Google specific character count limits here
+        const fmt = (campaign.google_settings && campaign.google_settings.ad_format) || 'SEARCH';
+        if (fmt === 'DISPLAY') {
+            const langs = (campaign.google_settings && campaign.google_settings.languages) || [];
+            const locs = (campaign.google_settings && campaign.google_settings.location_countries) || [];
+            if (!Array.isArray(langs) || langs.length === 0) {
+                errors.push('Google Display campaigns require at least one campaign language');
+            }
+            if (!Array.isArray(locs) || locs.length === 0) {
+                errors.push('Google Display campaigns require at least one location (country) for targeting');
+            }
+
+            for (const ag of adGroups) {
+                const t = ag.targeting || {};
+                const audience = (t.audience_description && String(t.audience_description).trim()) || '';
+                if (!audience) {
+                    errors.push(`Ad Group "${ag.name || ag._id}" requires audience targeting (description) for Google Display`);
+                }
+                const placements = Array.isArray(t.placement_targets)
+                    ? t.placement_targets.map(p => String(p || '').trim()).filter(Boolean)
+                    : [];
+                if (placements.length === 0) {
+                    errors.push(`Ad Group "${ag.name || ag._id}" requires at least one placement target (URL or app placement) for Google Display`);
+                }
+
+                const creatives = await adCreativeRepository.findAllByAdGroup(ag._id, effectiveClientId);
+                for (const creative of creatives) {
+                    const bn = (creative.business_name && String(creative.business_name).trim()) || '';
+                    if (!bn) {
+                        errors.push(`Creative "${creative.name}" in "${ag.name}" requires a business name for Google Display`);
+                    }
+                    const hasSquare = !!(creative.square_image_url && String(creative.square_image_url).trim());
+                    const hasLand = !!(creative.landscape_image_url && String(creative.landscape_image_url).trim());
+                    const hasLogo = !!(creative.logo_url && String(creative.logo_url).trim());
+                    if (!hasSquare || !hasLand || !hasLogo) {
+                        errors.push(
+                            `Creative "${creative.name}" in "${ag.name}" requires square, landscape, and logo images for Google Display`
+                        );
+                    }
+                    const urls = creative.final_urls && Array.isArray(creative.final_urls)
+                        ? creative.final_urls.filter(u => u && String(u).trim() !== '')
+                        : [];
+                    if (urls.length === 0) {
+                        errors.push(`Creative "${creative.name}" in "${ag.name}" requires a final URL for Google Display`);
+                    }
+                }
+            }
+        }
     }
 
     return errors;
@@ -340,8 +386,15 @@ const deleteCampaignFull = async (id, clientId, role) => {
         // Delete any uploaded creative images associated to this ad group.
         const creatives = await adCreativeRepository.findAllByAdGroup(ag._id, effectiveClientId);
         for (const c of creatives) {
-            if (c && c.image_filename) {
-                await safeUnlinkCampaignImage(c.image_filename);
+            if (!c) continue;
+            const files = [
+                c.image_filename,
+                c.square_image_filename,
+                c.landscape_image_filename,
+                c.logo_filename
+            ].filter(Boolean);
+            for (const fn of files) {
+                await safeUnlinkCampaignImage(fn);
             }
         }
 

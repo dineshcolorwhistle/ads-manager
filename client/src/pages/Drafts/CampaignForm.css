@@ -816,6 +816,23 @@
     color: #fecaca;
 }
 
+/* Google Display — multiple image slots */
+.display-assets-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1.25rem;
+    margin-bottom: 1rem;
+}
+
+.display-asset-cell .image-upload-zone-compact {
+    min-height: 120px;
+    padding: 1rem;
+}
+
+.display-asset-thumb {
+    max-height: 140px;
+}
+
 @media (max-width: 900px) {
     .form-header {
         flex-direction: column;

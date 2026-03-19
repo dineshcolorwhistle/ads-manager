@@ -46,11 +46,14 @@ const adGroupSchema = new mongoose.Schema({
     },
 
     // Meta: Ad Set targeting (geo_locations, age_min, age_max, genders). Used when publishing to Meta.
+    // Google Display: audience + placement notes (stored for UI / future API targeting).
     targeting: {
         countries: [{ type: String, trim: true, uppercase: true }], // e.g. ['US', 'GB']
         age_min: { type: Number, min: 13, max: 65 },
         age_max: { type: Number, min: 13, max: 65 },
-        genders: [{ type: Number }] // 1 = male, 2 = female; empty = all
+        genders: [{ type: Number }], // 1 = male, 2 = female; empty = all
+        audience_description: { type: String, trim: true, default: '' },
+        placement_targets: [{ type: String, trim: true }]
     },
 
     created_at: {
