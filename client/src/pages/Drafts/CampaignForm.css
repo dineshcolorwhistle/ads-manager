@@ -230,6 +230,12 @@
     padding-right: 2.5rem;
 }
 
+/* Hide native browser date icon to avoid duplicate with custom icon */
+.date-input-wrap input[type='date']::-webkit-calendar-picker-indicator {
+    opacity: 0;
+    pointer-events: none;
+}
+
 .date-picker-btn {
     position: absolute;
     right: 0.45rem;
