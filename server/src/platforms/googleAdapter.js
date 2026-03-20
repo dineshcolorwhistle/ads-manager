@@ -280,8 +280,12 @@ class GoogleAdapter extends BaseAdapter {
                 contains_eu_political_advertising: 3,
                 ...(isDisplay
                     ? {
-                        // Display: maximize clicks is widely supported for GDN campaigns
-                        maximize_clicks: {}
+                        // Use a simpler bidding configuration for Display campaigns.
+                        // This avoids having to supply `campaign_bidding_strategy` as a bidding
+                        // strategy *resource name* (which requires an additional API call).
+                        manual_cpc: {
+                            enhanced_cpc_enabled: false
+                        }
                     }
                     : {
                         // Search: In API v23, 'maximize_clicks' on Search is often expressed via target_spend
