@@ -142,12 +142,20 @@ const validatePlatformSpecific = async (platform, campaignId, clientId) => {
                     if (!bn) {
                         errors.push(`Creative "${creative.name}" in "${ag.name}" requires a business name for Google Display`);
                     }
-                    const hasSquare = !!(creative.square_image_url && String(creative.square_image_url).trim());
-                    const hasLand = !!(creative.landscape_image_url && String(creative.landscape_image_url).trim());
-                    const hasLogo = !!(creative.logo_url && String(creative.logo_url).trim());
+                    // Accept either uploaded local filenames or externally reachable URLs.
+                    // Public API automation may provide one or the other.
+                    const hasSquare =
+                        !!((creative.square_image_url && String(creative.square_image_url).trim()) ||
+                            (creative.square_image_filename && String(creative.square_image_filename).trim()));
+                    const hasLand =
+                        !!((creative.landscape_image_url && String(creative.landscape_image_url).trim()) ||
+                            (creative.landscape_image_filename && String(creative.landscape_image_filename).trim()));
+                    const hasLogo =
+                        !!((creative.logo_url && String(creative.logo_url).trim()) ||
+                            (creative.logo_filename && String(creative.logo_filename).trim()));
                     if (!hasSquare || !hasLand || !hasLogo) {
                         errors.push(
-                            `Creative "${creative.name}" in "${ag.name}" requires square, landscape, and logo images for Google Display`
+                            `Creative "${creative.name}" in "${ag.name}" requires square, landscape, and logo images (urls or filenames) for Google Display`
                         );
                     }
                     const urls = creative.final_urls && Array.isArray(creative.final_urls)

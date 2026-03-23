@@ -3,6 +3,7 @@ const path = require('path');
 const BaseAdapter = require('./baseAdapter');
 const logger = require('../utils/logger');
 const { GoogleAdsApi } = require('google-ads-api');
+const axios = require('axios');
 
 const CAMPAIGN_IMAGES_DIR = path.join(__dirname, '../../uploads/campaign-images');
 
@@ -71,13 +72,35 @@ class GoogleAdapter extends BaseAdapter {
     /**
      * Upload a stored campaign image as a Google Ads IMAGE asset.
      */
-    async _createImageAsset(customer, storedFilename, assetLabel) {
+    async _createImageAsset(customer, storedFilename, assetLabel, imageUrl) {
+        let buf = null;
+
+        // Prefer local filename if provided (faster + doesn't require public URL).
         const safe = path.basename(String(storedFilename || '').trim());
-        if (!safe) {
-            throw new Error('Missing image file reference');
+        if (safe) {
+            const fullPath = path.join(CAMPAIGN_IMAGES_DIR, safe);
+            try {
+                buf = await fs.readFile(fullPath);
+            } catch (err) {
+                // If the file isn't present locally, fall back to downloading from imageUrl (if provided).
+                if (!(err && (err.code === 'ENOENT' || err.code === 'ENOTDIR')) || !imageUrl) {
+                    throw err;
+                }
+                logger.warn('GOOGLE_ADAPTER', `Local image not found (${safe}); falling back to imageUrl`, {
+                    assetLabel,
+                    storedFilename: safe
+                });
+            }
         }
-        const fullPath = path.join(CAMPAIGN_IMAGES_DIR, safe);
-        const buf = await fs.readFile(fullPath);
+
+        if (!buf && imageUrl) {
+            const response = await axios.get(String(imageUrl), { responseType: 'arraybuffer' });
+            buf = Buffer.from(response.data);
+        }
+
+        if (!buf) {
+            throw new Error(`Missing image reference for ${assetLabel} (provide filename or imageUrl)`);
+        }
 
         const assetPayload = {
             name: `${assetLabel}-${Date.now()}`,
@@ -384,17 +407,20 @@ class GoogleAdapter extends BaseAdapter {
                                 landscapeAsset = await this._createImageAsset(
                                     customer,
                                     creative.landscape_image_filename,
-                                    'landscape'
+                                    'landscape',
+                                    creative.landscape_image_url
                                 );
                                 squareAsset = await this._createImageAsset(
                                     customer,
                                     creative.square_image_filename,
-                                    'square'
+                                    'square',
+                                    creative.square_image_url
                                 );
                                 logoAsset = await this._createImageAsset(
                                     customer,
                                     creative.logo_filename,
-                                    'logo'
+                                    'logo',
+                                    creative.logo_url
                                 );
                             } catch (imgErr) {
                                 const msg = this._extractErrorMessage(imgErr);

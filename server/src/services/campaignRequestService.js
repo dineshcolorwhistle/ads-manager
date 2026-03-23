@@ -17,6 +17,31 @@ const requireString = (value, field, errors) => {
     }
 };
 
+const requireNonEmptyStringArray = (value, field, errors) => {
+    if (!Array.isArray(value) || value.length === 0) {
+        errors.push(`${field} must be a non-empty array`);
+        return;
+    }
+    const hasAny = value.some(v => typeof v === 'string' && v.trim() !== '');
+    if (!hasAny) errors.push(`${field} must contain at least one non-empty string`);
+};
+
+const stripUrl = (maybeUrlOrFilename) => {
+    const s = String(maybeUrlOrFilename || '').trim();
+    if (!s) return '';
+    // Remove query/hash if this is a URL.
+    return s.replace(/[?#].*$/, '');
+};
+
+const filenameFromMaybeUrl = (maybeUrlOrFilename) => {
+    const s = stripUrl(maybeUrlOrFilename);
+    if (!s) return null;
+    // If it's just a filename, keep it.
+    if (!/[\\/]/.test(s)) return s;
+    const parts = s.split(/[\\/]/g);
+    return parts[parts.length - 1] || null;
+};
+
 const validateMetaPayload = (payload, errors) => {
     requireString(payload.metaAdAccount, 'metaAdAccount', errors);
     requireString(payload.facebookPageId, 'facebookPageId', errors);
@@ -57,6 +82,81 @@ const validateMetaPayload = (payload, errors) => {
         requireString(ag.destinationUrl, `adGroups[${i}].destinationUrl`, errors);
         requireString(ag.callToAction, `adGroups[${i}].callToAction`, errors);
         requireString(ag.imageUrl, `adGroups[${i}].imageUrl`, errors);
+    }
+};
+
+const validateGooglePayload = (payload, errors) => {
+    const googleAdAccount = payload.googleAdAccount || payload.googleCustomerId || payload.platformAccountId;
+    requireString(googleAdAccount, 'googleAdAccount/googleCustomerId/platformAccountId', errors);
+
+    if (!['daily', 'lifetime'].includes(String(payload.budgetType || '').toLowerCase())) {
+        errors.push('budgetType must be "daily" or "lifetime"');
+    }
+    if (typeof payload.budgetAmount !== 'number' || Number.isNaN(payload.budgetAmount) || payload.budgetAmount <= 0) {
+        errors.push('budgetAmount must be a number > 0');
+    }
+    requireString(payload.currency, 'currency', errors);
+    requireString(payload.startDate, 'startDate', errors);
+
+    if (!Array.isArray(payload.adGroups) || payload.adGroups.length === 0) {
+        errors.push('adGroups must be a non-empty array');
+        return;
+    }
+
+    const googleSettings = payload.googleSettings || payload.google_settings || {};
+    const adFormatRaw =
+        payload.googleAdFormat || payload.adFormat || googleSettings.ad_format || googleSettings.adFormat || 'SEARCH';
+    const adFormat = String(adFormatRaw || '').toUpperCase();
+    const isDisplay = adFormat === 'DISPLAY';
+
+    if (isDisplay) {
+        const languages = googleSettings.languages || payload.googleLanguages;
+        const locationCountries = googleSettings.location_countries || payload.googleLocationCountries;
+
+        if (!Array.isArray(languages) || languages.length === 0) {
+            errors.push('googleSettings.languages (or googleLanguages) must be a non-empty array for DISPLAY');
+        }
+        if (!Array.isArray(locationCountries) || locationCountries.length === 0) {
+            errors.push(
+                'googleSettings.location_countries (or googleLocationCountries) must be a non-empty array for DISPLAY'
+            );
+        }
+    }
+
+    for (let i = 0; i < payload.adGroups.length; i++) {
+        const ag = payload.adGroups[i] || {};
+        requireString(ag.adGroupName, `adGroups[${i}].adGroupName`, errors);
+
+        requireNonEmptyStringArray(ag.headlines, `adGroups[${i}].headlines`, errors);
+        requireNonEmptyStringArray(ag.descriptions, `adGroups[${i}].descriptions`, errors);
+        requireString(ag.destinationUrl, `adGroups[${i}].destinationUrl`, errors);
+
+        if (isDisplay) {
+            requireString(ag.businessName || ag.business_name, `adGroups[${i}].businessName`, errors);
+            requireString(ag.audienceDescription || ag.audience_description, `adGroups[${i}].audienceDescription`, errors);
+
+            const placementTargets =
+                ag.placementTargets || ag.placement_targets || ag.placements || payload.placementTargets;
+            if (!Array.isArray(placementTargets) || placementTargets.length === 0) {
+                errors.push(`adGroups[${i}].placementTargets must be a non-empty array for DISPLAY`);
+            } else {
+                const hasAny = placementTargets.some(v => typeof v === 'string' && v.trim() !== '');
+                if (!hasAny) errors.push(`adGroups[${i}].placementTargets must contain at least one non-empty string`);
+            }
+
+            const squareOk = !!(ag.squareImageFilename || ag.square_image_filename || ag.squareImageUrl || ag.square_image_url);
+            const landscapeOk =
+                !!(ag.landscapeImageFilename || ag.landscape_image_filename || ag.landscapeImageUrl || ag.landscape_image_url);
+            const logoOk = !!(ag.logoImageFilename || ag.logo_image_filename || ag.logoImageUrl || ag.logo_image_url);
+
+            if (!squareOk || !landscapeOk || !logoOk) {
+                const missing = [];
+                if (!squareOk) missing.push('square image');
+                if (!landscapeOk) missing.push('landscape image');
+                if (!logoOk) missing.push('logo image');
+                errors.push(`adGroups[${i}] requires ${missing.join(', ')} for DISPLAY`);
+            }
+        }
     }
 };
 
@@ -126,6 +226,26 @@ const buildFullCampaignFromRequest = (record) => {
 
     const facebookPageId = platform === 'meta' ? payload.facebookPageId : null;
 
+    const googleSettingsRaw = payload.googleSettings || payload.google_settings || {};
+    const adFormatRaw =
+        payload.googleAdFormat || payload.adFormat || googleSettingsRaw.ad_format || googleSettingsRaw.adFormat || 'SEARCH';
+    const adFormat = String(adFormatRaw || 'SEARCH').toUpperCase();
+
+    const googleSettings =
+        platform === 'google'
+            ? {
+                ad_format: adFormat === 'DISPLAY' ? 'DISPLAY' : 'SEARCH',
+                languages: Array.isArray(googleSettingsRaw.languages)
+                    ? googleSettingsRaw.languages.map(l => String(l).trim()).filter(Boolean)
+                    : (Array.isArray(payload.googleLanguages) ? payload.googleLanguages.map(l => String(l).trim()).filter(Boolean) : ['en']),
+                location_countries: Array.isArray(googleSettingsRaw.location_countries)
+                    ? googleSettingsRaw.location_countries.map(c => String(c).trim()).filter(Boolean).map(c => c.toUpperCase())
+                    : (Array.isArray(payload.googleLocationCountries)
+                        ? payload.googleLocationCountries.map(c => String(c).trim()).filter(Boolean).map(c => c.toUpperCase())
+                        : ['US'])
+            }
+            : undefined;
+
     const adGroups = Array.isArray(payload.adGroups) ? payload.adGroups : [];
 
     return {
@@ -139,6 +259,7 @@ const buildFullCampaignFromRequest = (record) => {
         end_date: payload.endDate ? new Date(payload.endDate) : null,
         platform_account_id: String(platformAccountId || '').trim(),
         facebook_page_id: facebookPageId ? String(facebookPageId).trim() : null,
+        ...(googleSettings ? { google_settings: googleSettings } : {}),
         ad_groups: adGroups.map((ag, idx) => ({
             name: String(ag.adGroupName || `Ad Group ${idx + 1}`).trim(),
             status: 'READY',
@@ -146,7 +267,9 @@ const buildFullCampaignFromRequest = (record) => {
                 countries: Array.isArray(ag.countries) ? ag.countries : [],
                 age_min: typeof ag.ageMin === 'number' ? ag.ageMin : undefined,
                 age_max: typeof ag.ageMax === 'number' ? ag.ageMax : undefined,
-                genders: normalizeGenderToMetaGenders(ag.gender)
+                genders: normalizeGenderToMetaGenders(ag.gender),
+                audience_description: ag.audienceDescription || ag.audience_description || '',
+                placement_targets: Array.isArray(ag.placementTargets) ? ag.placementTargets : (Array.isArray(ag.placement_targets) ? ag.placement_targets : [])
             },
             creatives: [{
                 name: `${String(ag.adGroupName || `Ad Group ${idx + 1}`).trim()} - Creative 1`,
@@ -154,7 +277,22 @@ const buildFullCampaignFromRequest = (record) => {
                 descriptions: (Array.isArray(ag.descriptions) ? ag.descriptions : []).map(d => ({ text: String(d).trim() })).filter(d => d.text),
                 final_urls: [String(ag.destinationUrl || '').trim()].filter(Boolean),
                 call_to_action_type: String(ag.callToAction || '').trim() || null,
-                image_url: String(ag.imageUrl || '').trim() || null
+                image_url: String(ag.imageUrl || '').trim() || null,
+                business_name: String(ag.businessName || ag.business_name || '').trim(),
+                square_image_url: String(ag.squareImageUrl || ag.square_image_url || '').trim() || null,
+                square_image_filename:
+                    (String(ag.squareImageFilename || ag.square_image_filename || '').trim() || null) ||
+                    (ag.squareImageUrl || ag.square_image_url ? filenameFromMaybeUrl(ag.squareImageUrl || ag.square_image_url) : null),
+                landscape_image_url: String(ag.landscapeImageUrl || ag.landscape_image_url || '').trim() || null,
+                landscape_image_filename:
+                    (String(ag.landscapeImageFilename || ag.landscape_image_filename || '').trim() || null) ||
+                    (ag.landscapeImageUrl || ag.landscape_image_url ? filenameFromMaybeUrl(ag.landscapeImageUrl || ag.landscape_image_url) : null),
+                logo_url: String(ag.logoImageUrl || ag.logo_url || ag.logo_image_url || '').trim() || null,
+                logo_filename:
+                    (String(ag.logoImageFilename || ag.logo_filename || ag.logo_image_filename || '').trim() || null) ||
+                    (ag.logoImageUrl || ag.logo_url || ag.logo_image_url
+                        ? filenameFromMaybeUrl(ag.logoImageUrl || ag.logo_url || ag.logo_image_url)
+                        : null)
             }]
         }))
     };
@@ -251,6 +389,10 @@ const createCampaignRequest = async (body) => {
     // Platform-specific validation
     if (platform === 'meta') {
         validateMetaPayload(body, errors);
+    }
+
+    if (platform === 'google') {
+        validateGooglePayload(body, errors);
     }
 
     if (errors.length > 0) {
