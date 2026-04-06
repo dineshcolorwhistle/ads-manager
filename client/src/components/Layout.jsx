@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
 import authService from '../services/authService';
+import IdleSessionWatcher from './IdleSessionWatcher';
 import UserAvatarMenu from './UserAvatarMenu';
 import './Layout.css';
 
@@ -15,6 +16,7 @@ function Layout({ children }) {
 
     return (
         <div className="layout">
+            <IdleSessionWatcher />
             {!isLoginPage && (
                 <header className="header">
                     <div className="container">
