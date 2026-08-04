@@ -9,7 +9,7 @@ jobs:
   deploy-staging:
     name: Deploy to Staging
     runs-on: ubuntu-latest
-    environment: staging
+    environment: agentwhistle-Staging
 
     steps:
       - name: Deploy to Staging
@@ -22,7 +22,7 @@ jobs:
           script: |
             set -e
 
-            cd /home/eduwhistle-adscampaign/htdocs/adscampaign.eduwhistle.com/ads-manager
+            cd /home/agentwhistle-adscampaign/htdocs/adscampaign.agentwhistle.com/ads-manager
 
             git config --global --add safe.directory "$(pwd)"
 
