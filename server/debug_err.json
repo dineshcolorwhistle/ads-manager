@@ -1,9 +1,0 @@
-{
-  "errors": [
-    {
-      "message": "Trying to modify the name of an active or paused campaign, where the name is already assigned to another active or paused campaign.",
-      "path": "{\"field_path_elements\":[{\"field_name\":\"operations\",\"index\":0},{\"field_name\":\"create\"},{\"field_name\":\"name\"}]}"
-    }
-  ],
-  "failure": null
-}
